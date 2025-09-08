@@ -44,6 +44,12 @@ class APIConfig(BaseModel):
     dataset_id: str = Field(default="bigquery-public-data.thelook_ecommerce", description="BigQuery dataset ID")
     max_query_results: int = Field(default=10000, description="Maximum query result rows")
     query_timeout: int = Field(default=300, description="Query timeout in seconds")
+    
+    # LangSmith configuration
+    langsmith_api_key: Optional[str] = Field(default=None, description="LangSmith API key")
+    langsmith_project: str = Field(default="data-analysis-agent", description="LangSmith project name")
+    langsmith_endpoint: str = Field(default="https://api.smith.langchain.com", description="LangSmith API endpoint")
+    enable_tracing: bool = Field(default=True, description="Enable LangSmith tracing")
 
 
 class LoggingConfig(BaseModel):
@@ -73,6 +79,9 @@ class SystemConfig(BaseModel):
         
         api_config.setdefault('gemini_api_key', os.getenv('GEMINI_API_KEY'))
         api_config.setdefault('bigquery_project_id', os.getenv('GOOGLE_CLOUD_PROJECT'))
+        api_config.setdefault('langsmith_api_key', os.getenv('LANGCHAIN_API_KEY'))
+        api_config.setdefault('langsmith_project', os.getenv('LANGCHAIN_PROJECT', 'data-analysis-agent'))
+        api_config.setdefault('enable_tracing', os.getenv('LANGCHAIN_TRACING_V2', 'true').lower() == 'true')
         
         kwargs['api_configurations'] = APIConfig(**api_config)
         super().__init__(**kwargs)
