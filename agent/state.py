@@ -6,15 +6,11 @@ from enum import Enum
 import pandas as pd
 
 
-class IntentType(Enum):
-    """Classification of user intent types."""
-    DATA_EXPLORATION = "data_exploration"
-    CUSTOMER_ANALYSIS = "customer_analysis"
-    PRODUCT_ANALYSIS = "product_analysis"
-    SALES_ANALYSIS = "sales_analysis"
-    ADVANCED_ANALYTICS = "advanced_analytics"
-    VISUALIZATION = "visualization"
-    UNKNOWN = "unknown"
+class ProcessType(Enum):
+    """Simplified process types for data analysis."""
+    SQL = "sql"              # All data retrieval, aggregation, and business analytics
+    PYTHON = "python"        # Complex analytics, ML, statistical analysis
+    VISUALIZATION = "visualization"  # Charts, plots, and visual representations
 
 
 class ExecutionStatus(Enum):
@@ -94,7 +90,7 @@ class AnalysisState(TypedDict, total=False):
     # Input Processing
     user_query: str
     normalized_query: str
-    intent_classification: IntentType
+    process_type: ProcessType
     confidence_score: float
     
     # Data Layer
@@ -132,7 +128,7 @@ def create_initial_state(user_query: str, session_id: str) -> AnalysisState:
     return AnalysisState(
         user_query=user_query,
         normalized_query="",
-        intent_classification=IntentType.UNKNOWN,
+        process_type=ProcessType.SQL,
         confidence_score=0.0,
         sql_query="",
         query_metadata=QueryMetadata(query_type="unknown"),
