@@ -1,4 +1,5 @@
 """LLM service for Google Gemini integration."""
+import os
 import time
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
@@ -7,6 +8,7 @@ from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
 from config import config
 from logging_config import get_logger
+from tracing.langsmith_setup import tracer, trace_llm_operation
 
 logger = get_logger(__name__)
 
@@ -51,39 +53,60 @@ class GeminiService:
         """Generate text response from Gemini."""
         start_time = time.time()
         
-        try:
-            generation_config = genai.types.GenerationConfig(
-                temperature=temperature,
-                max_output_tokens=max_tokens,
-                candidate_count=1
-            )
-            
-            response = self.model.generate_content(
-                prompt,
-                generation_config=generation_config
-            )
-            
-            if response.candidates and response.candidates[0].content.parts:
-                content = response.candidates[0].content.parts[0].text
-                response_time = time.time() - start_time
-                
-                return LLMResponse(
-                    content=content,
-                    tokens_used=self._estimate_tokens(prompt + content),
-                    response_time=response_time,
-                    model_used=os.getenv('GEMINI_MODEL', 'gemini-1.5-flash')
+        with trace_llm_operation(
+            name="gemini_generate_text",
+            model="gemini-1.5-flash",
+            temperature=temperature,
+            max_tokens=max_tokens,
+            prompt_length=len(prompt)
+        ):
+            try:
+                generation_config = genai.types.GenerationConfig(
+                    temperature=temperature,
+                    max_output_tokens=max_tokens,
+                    candidate_count=1
                 )
-            else:
-                logger.warning("Empty response from Gemini API")
-                return LLMResponse(content="", response_time=time.time() - start_time)
                 
-        except Exception as e:
-            logger.error(f"Error generating text with Gemini: {str(e)}")
-            raise
+                response = self.model.generate_content(
+                    prompt,
+                    generation_config=generation_config
+                )
+            
+                if response.candidates and response.candidates[0].content.parts:
+                    content = response.candidates[0].content.parts[0].text
+                    response_time = time.time() - start_time
+                    tokens_used = self._estimate_tokens(prompt + content)
+                    
+                    # Log metrics to trace
+                    tracer.log_metrics({
+                        "response_time": response_time,
+                        "tokens_used": tokens_used,
+                        "content_length": len(content),
+                        "prompt_length": len(prompt)
+                    })
+                    
+                    return LLMResponse(
+                        content=content,
+                        tokens_used=tokens_used,
+                        response_time=response_time,
+                        model_used="gemini-1.5-flash"
+                    )
+                else:
+                    logger.warning("Empty response from Gemini API")
+                    return LLMResponse(content="", response_time=time.time() - start_time)
+                    
+            except Exception as e:
+                logger.error(f"Error generating text with Gemini: {str(e)}")
+                raise
     
     def classify_intent(self, user_query: str) -> Dict[str, Any]:
         """Classify user intent for analysis routing."""
-        prompt = f"""
+        with trace_llm_operation(
+            name="gemini_classify_intent",
+            model="gemini-1.5-flash",
+            query_length=len(user_query)
+        ):
+            prompt = f"""
         Analyze the following user query and classify the intent for data analysis:
 
         Query: "{user_query}"
@@ -111,46 +134,73 @@ class GeminiService:
             "complexity": "low/medium/high"
         }}
         """
-        
-        response = self.generate_text(prompt, temperature=0.3)
-        
-        try:
-            import json
-            import re
             
-            # Extract JSON from response (handle markdown formatting)
-            content = response.content.strip()
+            response = self.generate_text(prompt, temperature=0.3)
             
-            # Try to extract JSON block if wrapped in markdown
-            json_match = re.search(r'```json\s*(\{.*?\})\s*```', content, re.DOTALL)
-            if json_match:
-                content = json_match.group(1)
-            elif content.startswith('```') and content.endswith('```'):
-                content = content.strip('`').strip()
+            # Log metrics for intent classification
+            tracer.log_metrics({
+                "intent_classification_prompt_length": len(prompt),
+                "user_query_length": len(user_query)
+            })
             
-            # Try to find JSON object in the content
-            if not content.startswith('{'):
-                json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            try:
+                import json
+                import re
+                
+                # Extract JSON from response (handle markdown formatting)
+                content = response.content.strip()
+                
+                # Try to extract JSON block if wrapped in markdown
+                json_match = re.search(r'```json\s*(\{.*?\})\s*```', content, re.DOTALL)
                 if json_match:
-                    content = json_match.group(0)
-            
-            result = json.loads(content)
-            return result
-        except (json.JSONDecodeError, AttributeError, TypeError) as e:
-            logger.warning(f"Failed to parse intent classification JSON: {e}")
-            logger.debug(f"Raw response content: {response.content[:200]}...")
-            return {
-                "intent": "unknown",
-                "confidence": 0.0,
-                "needs_python": True,
-                "entities": [],
-                "analysis_type": "unknown",
-                "complexity": "high"
-            }
+                    content = json_match.group(1)
+                elif content.startswith('```') and content.endswith('```'):
+                    content = content.strip('`').strip()
+                
+                # Try to find JSON object in the content
+                if not content.startswith('{'):
+                    json_match = re.search(r'\{.*\}', content, re.DOTALL)
+                    if json_match:
+                        content = json_match.group(0)
+                
+                result = json.loads(content)
+                
+                # Log successful parsing metrics
+                tracer.log_metrics({
+                    "intent_parsing_success": True,
+                    "classified_intent": result.get("intent", "unknown"),
+                    "confidence_score": result.get("confidence", 0.0)
+                })
+                
+                return result
+            except (json.JSONDecodeError, AttributeError, TypeError) as e:
+                logger.warning(f"Failed to parse intent classification JSON: {e}")
+                logger.debug(f"Raw response content: {response.content[:200]}...")
+                
+                # Log parsing failure metrics
+                tracer.log_metrics({
+                    "intent_parsing_success": False,
+                    "parsing_error": str(e)
+                })
+                
+                return {
+                    "intent": "unknown",
+                    "confidence": 0.0,
+                    "needs_python": True,
+                    "entities": [],
+                    "analysis_type": "unknown",
+                    "complexity": "high"
+                }
     
     def generate_sql_query(self, intent_data: Dict[str, Any], schema_info: Dict[str, Any]) -> str:
         """Generate SQL query based on user intent and schema."""
-        prompt = f"""
+        with trace_llm_operation(
+            name="gemini_generate_sql",
+            model="gemini-1.5-flash",
+            intent_type=intent_data.get("intent", "unknown"),
+            schema_tables=len(schema_info)
+        ):
+            prompt = f"""
         Generate a BigQuery SQL query for this analysis request:
 
         Intent: {intent_data['intent']}
@@ -170,13 +220,29 @@ class GeminiService:
 
         Generate ONLY the SQL query without explanations or markdown formatting.
         """
-        
-        response = self.generate_text(prompt, temperature=0.2)
-        return response.content.strip()
+            
+            response = self.generate_text(prompt, temperature=0.2)
+            sql_query = response.content.strip()
+            
+            # Log SQL generation metrics
+            tracer.log_metrics({
+                "sql_generation_prompt_length": len(prompt),
+                "generated_sql_length": len(sql_query),
+                "intent_type": intent_data.get("intent", "unknown"),
+                "complexity": intent_data.get("complexity", "unknown")
+            })
+            
+            return sql_query
     
     def generate_python_code(self, intent_data: Dict[str, Any], data_info: Dict[str, Any]) -> str:
         """Generate Python code for advanced analysis."""
-        prompt = f"""
+        with trace_llm_operation(
+            name="gemini_generate_python",
+            model="gemini-1.5-flash",
+            intent_type=intent_data.get("intent", "unknown"),
+            data_columns=len(data_info.get("columns", []))
+        ):
+            prompt = f"""
         Generate Python code for this data analysis task:
 
         Intent: {intent_data['intent']}
@@ -201,13 +267,29 @@ class GeminiService:
         Generate ONLY the Python code without explanations or markdown formatting.
         Store final results in a variable called 'analysis_results'.
         """
-        
-        response = self.generate_text(prompt, temperature=0.4)
-        return response.content.strip()
+            
+            response = self.generate_text(prompt, temperature=0.4)
+            python_code = response.content.strip()
+            
+            # Log Python code generation metrics
+            tracer.log_metrics({
+                "python_generation_prompt_length": len(prompt),
+                "generated_code_length": len(python_code),
+                "intent_type": intent_data.get("intent", "unknown"),
+                "data_shape": str(data_info.get("shape", "unknown"))
+            })
+            
+            return python_code
     
     def generate_insights(self, analysis_results: Dict[str, Any], original_query: str) -> str:
         """Generate business insights from analysis results."""
-        prompt = f"""
+        with trace_llm_operation(
+            name="gemini_generate_insights",
+            model="gemini-1.5-flash",
+            query_length=len(original_query),
+            results_keys=len(analysis_results.keys())
+        ):
+            prompt = f"""
         Generate actionable business insights based on this data analysis:
 
         Original Question: "{original_query}"
@@ -223,9 +305,19 @@ class GeminiService:
 
         Format as clear, business-friendly language suitable for stakeholders.
         """
-        
-        response = self.generate_text(prompt, temperature=0.6)
-        return response.content.strip()
+            
+            response = self.generate_text(prompt, temperature=0.6)
+            insights = response.content.strip()
+            
+            # Log insight generation metrics
+            tracer.log_metrics({
+                "insights_generation_prompt_length": len(prompt),
+                "generated_insights_length": len(insights),
+                "original_query_length": len(original_query),
+                "analysis_data_points": len(analysis_results.get("processed_data", [])) if "processed_data" in analysis_results else 0
+            })
+            
+            return insights
     
     def _estimate_tokens(self, text: str) -> int:
         """Estimate token count (rough approximation)."""
