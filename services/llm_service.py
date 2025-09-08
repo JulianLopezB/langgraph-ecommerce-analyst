@@ -41,7 +41,7 @@ class GeminiService:
         }
         
         self.model = genai.GenerativeModel(
-            'gemini-1.5-flash',
+            model_name=os.getenv('GEMINI_MODEL', 'gemini-1.5-flash'),
             safety_settings=self.safety_settings
         )
         
@@ -71,7 +71,7 @@ class GeminiService:
                     content=content,
                     tokens_used=self._estimate_tokens(prompt + content),
                     response_time=response_time,
-                    model_used="gemini-1.5-flash"
+                    model_used=os.getenv('GEMINI_MODEL', 'gemini-1.5-flash')
                 )
             else:
                 logger.warning("Empty response from Gemini API")
