@@ -3,6 +3,8 @@ from typing import Optional, List, Dict, Any
 import pandas as pd
 from google.cloud import bigquery
 
+from tracing.langsmith_setup import tracer
+
 
 class BigQueryRunner:
     """A lean BigQuery client for executing SQL queries and returning DataFrame results."""
@@ -35,15 +37,29 @@ class BigQueryRunner:
         Raises:
             Exception: If query execution fails.
         """
-        try:
-            logging.info(f"Executing BigQuery query")
-            query_job = self.client.query(sql_query)
-            df = query_job.result().to_dataframe()
-            logging.info(f"Query completed successfully, returned {len(df)} rows")
-            return df
-        except Exception as e:
-            logging.error(f"BigQuery execution failed: {str(e)}")
-            raise 
+        with tracer.trace_bigquery_operation(
+            name="execute_query",
+            query=sql_query,
+            dataset=self.dataset_id
+        ):
+            try:
+                logging.info(f"Executing BigQuery query")
+                query_job = self.client.query(sql_query)
+                df = query_job.result().to_dataframe()
+                
+                # Log metrics to trace
+                tracer.log_metrics({
+                    "rows_returned": len(df),
+                    "columns_returned": len(df.columns),
+                    "query_length": len(sql_query),
+                    "job_id": query_job.job_id
+                })
+                
+                logging.info(f"Query completed successfully, returned {len(df)} rows")
+                return df
+            except Exception as e:
+                logging.error(f"BigQuery execution failed: {str(e)}")
+                raise 
 
     def get_table_schema(self, table_name: str) -> List[Dict[str, Any]]:
         """Get schema information for a specific table.
