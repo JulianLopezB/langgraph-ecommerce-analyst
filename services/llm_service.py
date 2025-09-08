@@ -9,6 +9,7 @@ from google.generativeai.types import HarmCategory, HarmBlockThreshold
 from config import config
 from logging_config import get_logger
 from tracing.langsmith_setup import tracer, trace_llm_operation
+from services.intent_models import IntentClassificationResult, CLASSIFY_INTENT_FUNCTION
 
 logger = get_logger(__name__)
 
@@ -99,98 +100,123 @@ class GeminiService:
                 logger.error(f"Error generating text with Gemini: {str(e)}")
                 raise
     
-    def classify_intent(self, user_query: str) -> Dict[str, Any]:
-        """Classify user intent for analysis routing."""
+    def classify_intent(self, user_query: str) -> IntentClassificationResult:
+        """Classify user intent for analysis routing using function calling."""
         with trace_llm_operation(
             name="gemini_classify_intent",
             model="gemini-1.5-flash",
             query_length=len(user_query)
         ):
             prompt = f"""
-        Analyze the following user query and classify the intent for data analysis:
+            Analyze the following user query and classify the intent for data analysis:
 
-        Query: "{user_query}"
+            Query: "{user_query}"
 
-        Classify into one of these categories:
-        - data_exploration: Basic data inspection, summaries, data quality checks
-        - customer_analysis: Customer segmentation, behavior analysis, churn, CLV
-        - product_analysis: Product performance, recommendations, inventory
-        - sales_analysis: Sales trends, forecasting, revenue analysis
-        - advanced_analytics: Machine learning, statistical modeling, complex algorithms
-        - visualization: Creating charts, graphs, dashboards
+            Consider these intent categories:
+            - data_exploration: Basic data inspection, summaries, data quality checks
+            - customer_analysis: Customer segmentation, behavior analysis, churn, CLV  
+            - product_analysis: Product performance, recommendations, inventory
+            - sales_analysis: Sales trends, forecasting, revenue analysis
+            - advanced_analytics: Machine learning, statistical modeling, complex algorithms
+            - visualization: Creating charts, graphs, dashboards
 
-        Also determine:
-        1. Confidence score (0.0-1.0)
-        2. Whether SQL alone is sufficient or if Python analysis is needed
-        3. Key entities mentioned (customers, products, dates, metrics)
+            Determine:
+            1. The most appropriate intent category
+            2. Confidence score (0.0-1.0) 
+            3. Whether Python analysis is needed beyond SQL
+            4. Key entities mentioned (customers, products, dates, metrics)
+            5. Brief description of the analysis type
+            6. Complexity level (low/medium/high)
 
-        Respond in this exact JSON format:
-        {{
-            "intent": "category_name",
-            "confidence": 0.85,
-            "needs_python": true/false,
-            "entities": ["entity1", "entity2"],
-            "analysis_type": "brief description",
-            "complexity": "low/medium/high"
-        }}
-        """
-            
-            response = self.generate_text(prompt, temperature=0.3)
-            
-            # Log metrics for intent classification
-            tracer.log_metrics({
-                "intent_classification_prompt_length": len(prompt),
-                "user_query_length": len(user_query)
-            })
+            Use the classify_user_intent function to provide structured output.
+            """
             
             try:
-                import json
-                import re
+                # Configure model for function calling
+                function_calling_model = genai.GenerativeModel(
+                    model_name=os.getenv('GEMINI_MODEL', 'gemini-1.5-flash'),
+                    safety_settings=self.safety_settings,
+                    tools=[{"function_declarations": [CLASSIFY_INTENT_FUNCTION]}]
+                )
                 
-                # Extract JSON from response (handle markdown formatting)
-                content = response.content.strip()
+                response = function_calling_model.generate_content(
+                    prompt,
+                    generation_config=genai.types.GenerationConfig(
+                        temperature=0.3,
+                        max_output_tokens=1024
+                    )
+                )
                 
-                # Try to extract JSON block if wrapped in markdown
-                json_match = re.search(r'```json\s*(\{.*?\})\s*```', content, re.DOTALL)
-                if json_match:
-                    content = json_match.group(1)
-                elif content.startswith('```') and content.endswith('```'):
-                    content = content.strip('`').strip()
+                # Extract function call result
+                if response.candidates and response.candidates[0].content.parts:
+                    for part in response.candidates[0].content.parts:
+                        if hasattr(part, 'function_call') and part.function_call:
+                            function_call = part.function_call
+                            if function_call.name == "classify_user_intent":
+                                # Convert function call args to Pydantic model
+                                try:
+                                    args = dict(function_call.args)
+                                    logger.debug(f"Function call args: {args}")
+                                    
+                                    # Handle IntentType conversion
+                                    if 'intent' in args:
+                                        from agent.state import IntentType
+                                        intent_value = args['intent']
+                                        args['intent'] = IntentType(intent_value)
+                                    
+                                    result = IntentClassificationResult(**args)
+                                    
+                                    # Log successful function calling metrics
+                                    tracer.log_metrics({
+                                        "intent_parsing_success": True,
+                                        "classified_intent": result.intent.value,
+                                        "confidence_score": result.confidence,
+                                        "function_calling_used": True
+                                    })
+                                    
+                                    return result
+                                except Exception as e:
+                                    logger.error(f"Error creating IntentClassificationResult: {e}")
+                                    logger.debug(f"Function call args were: {args}")
+                                    # Continue to fallback
                 
-                # Try to find JSON object in the content
-                if not content.startswith('{'):
-                    json_match = re.search(r'\{.*\}', content, re.DOTALL)
-                    if json_match:
-                        content = json_match.group(0)
-                
-                result = json.loads(content)
-                
-                # Log successful parsing metrics
-                tracer.log_metrics({
-                    "intent_parsing_success": True,
-                    "classified_intent": result.get("intent", "unknown"),
-                    "confidence_score": result.get("confidence", 0.0)
-                })
-                
-                return result
-            except (json.JSONDecodeError, AttributeError, TypeError) as e:
-                logger.warning(f"Failed to parse intent classification JSON: {e}")
-                logger.debug(f"Raw response content: {response.content[:200]}...")
-                
-                # Log parsing failure metrics
+                # Fallback if no function call found
+                logger.warning("No function call found in response, using fallback")
                 tracer.log_metrics({
                     "intent_parsing_success": False,
-                    "parsing_error": str(e)
+                    "function_calling_used": False,
+                    "fallback_reason": "no_function_call"
                 })
                 
-                return {
-                    "intent": "unknown",
-                    "confidence": 0.0,
-                    "needs_python": True,
-                    "entities": [],
-                    "analysis_type": "unknown",
-                    "complexity": "high"
-                }
+                from agent.state import IntentType
+                return IntentClassificationResult(
+                    intent=IntentType.UNKNOWN,
+                    confidence=0.0,
+                    needs_python=True,
+                    entities=[],
+                    analysis_type="unknown",
+                    complexity="high"
+                )
+                
+            except Exception as e:
+                logger.error(f"Error in function calling intent classification: {e}")
+                
+                # Log error metrics
+                tracer.log_metrics({
+                    "intent_parsing_success": False,
+                    "function_calling_used": True,
+                    "error": str(e)
+                })
+                
+                from agent.state import IntentType
+                return IntentClassificationResult(
+                    intent=IntentType.UNKNOWN,
+                    confidence=0.0,
+                    needs_python=True,
+                    entities=[],
+                    analysis_type="unknown",
+                    complexity="high"
+                )
     
     def generate_sql_query(self, intent_data: Dict[str, Any], schema_info: Dict[str, Any]) -> str:
         """Generate SQL query based on user intent and schema."""
