@@ -187,19 +187,25 @@ class GeminiService:
             results_keys=len(analysis_results.keys())
         ):
             prompt = f"""
-        Generate concise, actionable business insights based on this data analysis:
+        Generate clear, actionable business insights based on this data analysis:
 
         Question: "{original_query}"
         Analysis Results: {analysis_results}
 
-        Provide a brief, useful summary with:
-        1. Top 3 key findings (most important insights)
-        2. What this means for the business
-        3. Recommended next steps
+        Provide exactly two sections:
 
-        Keep it concise and actionable. Focus on what matters most.
-        Use friendly, clear language that any business user can understand.
-        Avoid technical jargon and lengthy explanations.
+        Key Findings:
+        • [List the most important discoveries from the data]
+        • [Include as many findings as are truly significant - don't limit to 3]
+        • [Focus on what the data actually shows]
+
+        Business Impact:
+        [Write a holistic analysis of what these findings mean for the business]
+        [Explain the broader implications and strategic considerations]
+        [Keep it conversational and insightful]
+
+        Use clear, friendly language. Avoid technical jargon.
+        Don't include limitations, caveats, or next steps - focus on insights and impact.
         """
             
             response = self.generate_text(prompt, temperature=0.6)
