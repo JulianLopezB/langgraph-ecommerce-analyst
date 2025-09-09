@@ -159,7 +159,8 @@ class SecureExecutor:
         safe_builtins = {
             'len', 'str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set',
             'min', 'max', 'sum', 'abs', 'round', 'sorted', 'enumerate', 'zip',
-            'range', 'print', 'type', 'isinstance', 'any', 'all', '__import__'
+            'range', 'print', 'type', 'isinstance', 'any', 'all', '__import__',
+            'Exception', 'ValueError', 'TypeError', 'KeyError', 'IndexError', 'AttributeError'
         }
         
         safe_globals = {
