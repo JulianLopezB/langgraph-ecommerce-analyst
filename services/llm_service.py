@@ -133,19 +133,28 @@ class GeminiService:
         - Sample Values: {str(data_characteristics.get('sample_values', {}))}
         - Forecasting Ready: {data_characteristics.get('forecasting_ready', False)}
         
-        GENERATE ROBUST CODE THAT:
-        1. Works with THIS specific data structure
-        2. Uses appropriate algorithms for the data size
-        3. Handles the actual column names and types
-        4. Creates meaningful visualizations
-        5. Provides insights relevant to the user's request
+        ANALYZE THE USER'S REQUEST AND GENERATE APPROPRIATE CODE:
         
-        FOR FORECASTING SPECIFICALLY:
-        - Use whatever fits the data (linear, polynomial, exponential models)
-        - Plot historical data and forecasted trend
-        - Don't force complex models if data is limited
-        - Generate 3-month projections with confidence bounds
-        - Be pragmatic: use what works, not what's theoretically best
+        The user asked: "{original_query}"
+        
+        CRITICAL: Generate code that DIRECTLY answers their specific question.
+        
+        Examples of what different requests need:
+        - "Segment customers" → Create distinct customer groups with names and characteristics
+        - "RFM analysis" → Calculate scores AND create segments like Champions, At Risk, etc.
+        - "Forecast sales" → Build predictive models and generate future projections
+        - "Product recommendations" → Generate personalized product suggestions
+        - "Sales trends" → Analyze patterns over time with trend analysis
+        
+        DO NOT just provide statistics - provide the specific analysis they requested.
+        
+        REQUIREMENTS:
+        1. Use the actual column names: {data_characteristics.get('columns', [])}
+        2. Answer their exact question, not a related question
+        3. If they want segments: create labeled groups with percentages
+        4. If they want forecasts: create future predictions
+        5. If they want trends: show patterns over time
+        6. Include specific numbers, percentages, and concrete insights
 
         Requirements:
         1. Use allowed libraries: pandas, numpy, matplotlib, seaborn, plotly, sklearn, scipy
@@ -187,25 +196,29 @@ class GeminiService:
             results_keys=len(analysis_results.keys())
         ):
             prompt = f"""
-        Generate clear, actionable business insights based on this data analysis:
+        Generate concise business insights with specific numbers and percentages:
 
         Question: "{original_query}"
         Analysis Results: {analysis_results}
 
-        Provide exactly two sections:
+        Format exactly like this:
 
         Key Findings:
-        • [List the most important discoveries from the data]
-        • [Include as many findings as are truly significant - don't limit to 3]
-        • [Focus on what the data actually shows]
+        • [Specific finding with actual numbers/percentages]
+        • [Another finding with concrete data]
+        • [One more key insight with metrics]
 
         Business Impact:
-        [Write a holistic analysis of what these findings mean for the business]
-        [Explain the broader implications and strategic considerations]
-        [Keep it conversational and insightful]
+        [2-3 sentences maximum explaining what this means strategically]
 
-        Use clear, friendly language. Avoid technical jargon.
-        Don't include limitations, caveats, or next steps - focus on insights and impact.
+        Requirements:
+        - Include specific numbers, percentages, dollar amounts from the data
+        - Keep findings to 3-4 maximum for readability
+        - Make business impact concise but insightful
+        - Use concrete data points, not vague descriptions
+        - Each finding should be one clear sentence with metrics
+        - Focus on the specific analysis the user requested
+        - Provide actionable insights relevant to their question
         """
             
             response = self.generate_text(prompt, temperature=0.6)
@@ -222,7 +235,7 @@ class GeminiService:
             return insights
     
     def _clean_python_code(self, code: str) -> str:
-        """Clean Python code by removing markdown formatting."""
+        """Clean Python code by removing markdown formatting and fixing syntax issues."""
         # Remove markdown code blocks
         if code.startswith("```python"):
             code = code[9:]
@@ -234,6 +247,25 @@ class GeminiService:
         
         # Remove any leading/trailing whitespace
         code = code.strip()
+        
+        # Fix common string literal issues
+        import re
+        
+        # Fix unterminated string literals by removing incomplete lines
+        lines = code.split('\n')
+        cleaned_lines = []
+        
+        for line in lines:
+            # Skip lines that might have unterminated strings
+            if line.count('"') % 2 != 0 and not line.strip().startswith('#'):
+                # Try to fix by removing trailing content
+                if '"' in line:
+                    quote_pos = line.rfind('"')
+                    line = line[:quote_pos + 1]
+            
+            cleaned_lines.append(line)
+        
+        code = '\n'.join(cleaned_lines)
         
         # Remove any explanation text before the first import or assignment
         lines = code.split('\n')
