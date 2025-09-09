@@ -1,14 +1,14 @@
 """Code validation and security scanning for generated Python code."""
 import ast
 import re
-import logging
-from typing import List, Dict, Any, Set
-from dataclasses import dataclass
 import time
+from dataclasses import dataclass
+from typing import List, Dict, Any, Set
 
 from config import config
+from logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass
