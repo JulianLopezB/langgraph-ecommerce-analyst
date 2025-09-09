@@ -2,7 +2,12 @@
 import os
 import sys
 import logging
+import warnings
 from pathlib import Path
+
+# Suppress BigQuery Storage warnings for cleaner user experience
+warnings.filterwarnings("ignore", message="BigQuery Storage module not found")
+warnings.filterwarnings("ignore", category=UserWarning, module="google.cloud.bigquery")
 
 # Add project root to Python path
 project_root = Path(__file__).parent

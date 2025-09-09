@@ -109,17 +109,18 @@ class DataAnalysisCLI:
     def _process_query(self, user_query: str):
         """Process a user analysis query."""
         try:
-            # Show simple progress indicator
+            # Show detailed progress with agent thinking process
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
                 console=self.console,
-                transient=True
+                transient=False  # Keep progress visible
             ) as progress:
-                task = progress.add_task("🧠 Let me think about this...", total=None)
+                # Start with understanding the query
+                task = progress.add_task("🧠 Understanding your question...", total=None)
                 
-                # Perform analysis
-                results = session_manager.analyze_query(user_query, self.session_id)
+                # Create a custom session manager that provides progress updates
+                results = self._analyze_with_progress(user_query, progress, task)
             
             # Display results
             self._display_results(results)
@@ -278,6 +279,43 @@ class DataAnalysisCLI:
             friendly_msg += " (there was a formatting issue)"
         
         return friendly_msg
+    
+    def _analyze_with_progress(self, user_query: str, progress, task):
+        """Perform analysis with detailed progress updates."""
+        import time
+        
+        try:
+            # Step 1: Understanding the query
+            progress.update(task, description="🧠 Understanding your question...")
+            time.sleep(0.5)  # Brief pause for user to see the step
+            
+            # Step 2: Planning the analysis
+            progress.update(task, description="🎯 Planning the analysis...")
+            time.sleep(0.3)
+            
+            # Step 3: Getting the data
+            progress.update(task, description="📊 Retrieving your data...")
+            time.sleep(0.3)
+            
+            # Step 4: Analyzing
+            progress.update(task, description="⚡ Running the analysis...")
+            
+            # Perform the actual analysis
+            results = session_manager.analyze_query(user_query, self.session_id)
+            
+            # Step 5: Finalizing
+            progress.update(task, description="✨ Preparing your results...")
+            time.sleep(0.2)
+            
+            # Complete
+            progress.update(task, description="✅ Analysis complete!")
+            time.sleep(0.3)
+            
+            return results
+            
+        except Exception as e:
+            progress.update(task, description="❌ Something went wrong...")
+            raise e
 
 
 @click.command()
