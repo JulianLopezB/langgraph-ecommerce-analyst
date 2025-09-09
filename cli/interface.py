@@ -38,19 +38,16 @@ class DataAnalysisCLI:
             'segment', 'trends', 'revenue', 'churn', 'recommend'
         ])
         
-        self.console.print(Panel.fit(
-            "[bold blue]🤖 AI-Powered E-commerce Data Analysis Agent[/bold blue]\\n"
-            "[dim]Ask questions about your e-commerce data in natural language[/dim]",
-            title="Welcome",
-            border_style="blue"
-        ))
+        self.console.print("🤖 AI-Powered E-commerce Data Analysis Agent")
+        self.console.print("Ask me questions about your e-commerce data in natural language!")
+        self.console.print()
     
     def start_interactive_session(self):
         """Start an interactive analysis session."""
         try:
             # Start new session
             self.session_id = session_manager.start_session()
-            self.console.print(f"[green]✓ Started new session: {self.session_id}[/green]")
+            self.console.print(f"✓ Ready to analyze your data!")
             
             # Show help message
             self._show_help()
@@ -83,7 +80,7 @@ class DataAnalysisCLI:
                     elif user_input.lower() == 'new':
                         if Confirm.ask("Start a new session?"):
                             self.session_id = session_manager.start_session()
-                            self.console.print(f"[green]✓ Started new session: {self.session_id}[/green]")
+                            self.console.print("✓ Started a fresh session! What would you like to analyze?")
                         continue
                     
                     # Process analysis query
@@ -97,27 +94,29 @@ class DataAnalysisCLI:
                 except EOFError:
                     break
                 except Exception as e:
-                    self.console.print(f"[red]Error: {str(e)}[/red]")
+                    self.console.print(f"I encountered an issue: {str(e)}")
+                    self.console.print("Let's try that again, or type 'help' for assistance.")
                     logger.error(f"CLI error: {str(e)}")
             
-            self.console.print("\\n[yellow]👋 Thank you for using the Data Analysis Agent![/yellow]")
+            self.console.print("\\n👋 Thanks for using the Data Analysis Agent! Have a great day!")
             
         except Exception as e:
-            self.console.print(f"[red]Fatal error: {str(e)}[/red]")
+            self.console.print(f"I'm sorry, something went wrong: {str(e)}")
+            self.console.print("Please try restarting the application.")
             logger.error(f"Fatal CLI error: {str(e)}")
             sys.exit(1)
     
     def _process_query(self, user_query: str):
         """Process a user analysis query."""
         try:
-            # Show progress indicator
+            # Show simple progress indicator
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
                 console=self.console,
                 transient=True
             ) as progress:
-                task = progress.add_task("🧠 Analyzing your question...", total=None)
+                task = progress.add_task("🧠 Let me think about this...", total=None)
                 
                 # Perform analysis
                 results = session_manager.analyze_query(user_query, self.session_id)
@@ -126,86 +125,62 @@ class DataAnalysisCLI:
             self._display_results(results)
             
         except Exception as e:
-            self.console.print(f"[red]Analysis failed: {str(e)}[/red]")
+            self.console.print(f"I had trouble analyzing that question: {str(e)}")
+            self.console.print("Could you try rephrasing your question or ask something else?")
             logger.error(f"Query processing error: {str(e)}")
     
     def _display_results(self, results: Dict[str, Any]):
-        """Display analysis results in a formatted way."""
+        """Display analysis results in a conversational way."""
         try:
             # Main insights
             if results.get("insights"):
                 self.console.print()
-                insights_panel = Panel(
-                    Markdown(results["insights"]),
-                    title="📊 Analysis Results",
-                    border_style="green"
-                )
-                self.console.print(insights_panel)
+                self.console.print("📊 Here's what I found:")
+                self.console.print()
+                # Convert markdown to plain text
+                insights_text = self._convert_markdown_to_text(results["insights"])
+                self.console.print(insights_text)
+                self.console.print()
             
-            # Show execution details if available
-            exec_results = results.get("execution_results", {})
-            if exec_results and exec_results.get("status") == "success":
-                self._show_execution_summary(exec_results)
-            
-            # Show any errors
+            # Show any errors in a friendly way
             error_context = results.get("error_context", {})
             if error_context:
                 self._show_error_summary(error_context)
             
-            # Show data summary if available
-            analysis_outputs = results.get("analysis_outputs", {})
-            if "data_summary" in analysis_outputs:
-                self._show_data_summary(analysis_outputs["data_summary"])
-            
         except Exception as e:
-            self.console.print(f"[red]Error displaying results: {str(e)}[/red]")
+            self.console.print(f"I had trouble showing the results: {str(e)}")
+            self.console.print("But I did complete the analysis!")
             logger.error(f"Display error: {str(e)}")
     
-    def _show_execution_summary(self, exec_results: Dict[str, Any]):
-        """Show execution performance summary."""
-        execution_time = exec_results.get("execution_time", 0)
-        memory_used = exec_results.get("memory_used_mb", 0)
-        
-        summary_text = f"⏱️  Execution time: {execution_time:.2f}s"
-        if memory_used > 0:
-            summary_text += f" | 💾 Memory used: {memory_used:.1f}MB"
-        
-        self.console.print(f"[dim]{summary_text}[/dim]")
     
     def _show_error_summary(self, error_context: Dict[str, Any]):
-        """Show error information."""
+        """Show error information in a friendly way."""
         if error_context:
-            error_panel = Panel(
-                "\\n".join([f"• {error_type}: {error_msg}" for error_type, error_msg in error_context.items()]),
-                title="⚠️  Issues Encountered",
-                border_style="yellow"
-            )
-            self.console.print(error_panel)
+            self.console.print("⚠️  I ran into a small issue:")
+            for error_type, error_msg in error_context.items():
+                friendly_msg = self._make_error_friendly(error_type, error_msg)
+                self.console.print(f"   {friendly_msg}")
+            self.console.print()
+            self.console.print("Don't worry - I can try a different approach if you'd like!")
     
-    def _show_data_summary(self, data_summary: Dict[str, Any]):
-        """Show data summary information."""
-        rows = data_summary.get("rows", 0)
-        columns = data_summary.get("columns", 0)
-        
-        self.console.print(f"[dim]📈 Analyzed {rows:,} rows across {columns} columns[/dim]")
     
     def _show_session_history(self):
         """Show conversation history for current session."""
         if not self.session_id:
-            self.console.print("[yellow]No active session[/yellow]")
+            self.console.print("No active session yet. Start by asking me a question!")
             return
         
         try:
             history = session_manager.get_session_history(self.session_id)
             
             if "error" in history:
-                self.console.print(f"[red]{history['error']}[/red]")
+                self.console.print(f"I couldn't find that session: {history['error']}")
                 return
             
             conversation = history.get("conversation_history", [])
             
             if not conversation:
-                self.console.print("[yellow]No conversation history[/yellow]")
+                self.console.print("We haven't chatted yet! Ask me a question to get started.")
                 return
             
             # Create history table
@@ -224,43 +199,85 @@ class DataAnalysisCLI:
             self.console.print(table)
             
         except Exception as e:
-            self.console.print(f"[red]Error retrieving history: {str(e)}[/red]")
+            self.console.print(f"I couldn't retrieve the conversation history: {str(e)}")
     
     def _show_help(self):
         """Show help information."""
-        help_text = """
-[bold]🚀 Getting Started[/bold]
-Ask questions about your e-commerce data in natural language!
-
-[bold]📝 Example Questions:[/bold]
-• "Segment our customers using RFM analysis"
-• "What are the sales trends for the last quarter?"
-• "Which products have the highest revenue?"
-• "Forecast sales for the next 3 months"
-• "Show me customer churn analysis"
-• "What products should we recommend to customer 12345?"
-
-[bold]💡 Commands:[/bold]
-• [cyan]help[/cyan] - Show this help message
-• [cyan]history[/cyan] - Show conversation history
-• [cyan]clear[/cyan] - Clear screen
-• [cyan]new[/cyan] - Start new session
-• [cyan]exit/quit[/cyan] - Exit the application
-
-[bold]📊 Analysis Types Supported:[/bold]
-• Customer segmentation and behavior analysis
-• Sales forecasting and trend analysis
-• Product performance and recommendations
-• Statistical analysis and data exploration
-• Machine learning models and clustering
-        """.strip()
+        self.console.print()
+        self.console.print("🚀 Getting Started")
+        self.console.print("Just ask me questions about your e-commerce data in plain English!")
+        self.console.print()
         
-        help_panel = Panel(
-            help_text,
-            title="Help & Examples",
-            border_style="cyan"
-        )
-        self.console.print(help_panel)
+        self.console.print("📝 Here are some things you can ask:")
+        self.console.print("• Segment our customers using RFM analysis")
+        self.console.print("• What are the sales trends for the last quarter?")
+        self.console.print("• Which products have the highest revenue?")
+        self.console.print("• Forecast sales for the next 3 months")
+        self.console.print("• Show me customer churn analysis")
+        self.console.print("• What products should we recommend to customer 12345?")
+        self.console.print()
+        
+        self.console.print("💡 Commands you can use:")
+        self.console.print("• help - Show this message")
+        self.console.print("• history - Show our conversation")
+        self.console.print("• clear - Clear the screen")
+        self.console.print("• new - Start fresh")
+        self.console.print("• exit or quit - Leave the chat")
+        self.console.print()
+        
+        self.console.print("📊 I can help you with:")
+        self.console.print("• Customer segmentation and behavior analysis")
+        self.console.print("• Sales forecasting and trend analysis")
+        self.console.print("• Product performance and recommendations")
+        self.console.print("• Statistical analysis and data exploration")
+        self.console.print("• Machine learning models and clustering")
+        self.console.print()
+    
+    def _convert_markdown_to_text(self, markdown_text: str) -> str:
+        """Convert markdown to plain text for conversational display."""
+        import re
+        
+        # Remove markdown formatting
+        text = markdown_text
+        
+        # Convert headers
+        text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+        
+        # Convert bold/italic
+        text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+        text = re.sub(r'\*(.*?)\*', r'\1', text)
+        
+        # Convert bullet points
+        text = re.sub(r'^[-*+]\s+', '• ', text, flags=re.MULTILINE)
+        
+        # Clean up extra whitespace
+        text = re.sub(r'\n\s*\n', '\n\n', text)
+        text = text.strip()
+        
+        return text
+    
+    def _make_error_friendly(self, error_type: str, error_msg: str) -> str:
+        """Convert technical error messages to friendly ones."""
+        friendly_messages = {
+            'sql_execution_error': "I had trouble running the database query",
+            'code_generation_error': "I had difficulty creating the analysis code",
+            'execution_error': "The analysis code ran into an issue",
+            'validation_error': "I found a problem with the generated code",
+            'understanding_error': "I had trouble understanding your question",
+            'sql_generation_error': "I couldn't create the right database query"
+        }
+        
+        friendly_msg = friendly_messages.get(error_type, "I encountered an unexpected issue")
+        
+        # Add specific details if they're helpful
+        if "timeout" in error_msg.lower():
+            friendly_msg += " (it took too long to complete)"
+        elif "memory" in error_msg.lower():
+            friendly_msg += " (it needed too much memory)"
+        elif "syntax" in error_msg.lower():
+            friendly_msg += " (there was a formatting issue)"
+        
+        return friendly_msg
 
 
 @click.command()
