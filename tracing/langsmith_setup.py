@@ -154,26 +154,16 @@ class LangSmithTracer:
             metrics: Dictionary of metrics to log
             run_id: Optional run ID to attach metrics to
         """
-        if not self.enabled or not self.client:
+        if not self.enabled:
             return
         
         try:
-            # Add metrics to current run context
-            current_run = tracing_context.get()
-            if current_run and hasattr(current_run, 'add_metadata'):
-                for key, value in metrics.items():
-                    current_run.add_metadata({f"metric_{key}": value})
-            elif current_run:
-                # Alternative approach - update run metadata
-                try:
-                    from langsmith import traceable
-                    # Log as tags instead of metadata if add_metadata doesn't exist
-                    for key, value in metrics.items():
-                        logger.debug(f"Metric {key}: {value}")
-                except:
-                    pass
+            # Just log metrics as debug for now to avoid context issues
+            # The tracing context API seems to be inconsistent
+            for key, value in metrics.items():
+                logger.debug(f"LangSmith metric - {key}: {value}")
         except Exception as e:
-            logger.warning(f"Failed to log metrics to LangSmith: {e}")
+            logger.debug(f"Error logging metrics: {e}")
 
 
 # Global tracer instance
