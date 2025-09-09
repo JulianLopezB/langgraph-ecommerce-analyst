@@ -163,7 +163,12 @@ SQL GENERATION REQUIREMENTS:
    - Use DATE_DIFF(CURRENT_DATE(), DATE(timestamp_column), DAY) for days between dates
    - Use TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), timestamp_column, DAY) for timestamp differences
    - Convert TIMESTAMP to DATE using DATE(timestamp_column) when needed
+   - For quarters: Use EXTRACT(QUARTER FROM DATE(timestamp_column)) NOT QUARTER(timestamp_column)
+   - For months: Use EXTRACT(MONTH FROM DATE(timestamp_column))
+   - For years: Use EXTRACT(YEAR FROM DATE(timestamp_column))
    - For RFM: DATE_DIFF(CURRENT_DATE(), DATE(o.created_at), DAY) AS days_since_last_order
+   
+   CRITICAL: BigQuery uses EXTRACT(part FROM date) syntax, not QUARTER(), MONTH(), YEAR() functions!
 
 7. **CRITICAL - GROUP BY Rules**:
    - EVERY non-aggregate column in SELECT must be in GROUP BY
@@ -271,6 +276,22 @@ CRITICAL FOR FORECASTING:
 - SQL retrieves HISTORICAL monthly data (past 18 months)
 - Python will analyze trends and predict future 3 months
 - NO future dates generated in SQL - only actual historical dates!
+
+EXAMPLE for "quarterly sales trends":
+```sql
+SELECT 
+    EXTRACT(YEAR FROM DATE(o.created_at)) as year,
+    EXTRACT(QUARTER FROM DATE(o.created_at)) as quarter,
+    SUM(oi.sale_price) as quarterly_revenue,
+    COUNT(DISTINCT o.order_id) as quarterly_orders
+FROM `bigquery-public-data.thelook_ecommerce.orders` o
+JOIN `bigquery-public-data.thelook_ecommerce.order_items` oi 
+    ON o.order_id = oi.order_id
+WHERE o.created_at >= DATE_SUB(CURRENT_DATE(), INTERVAL 2 YEAR)
+GROUP BY EXTRACT(YEAR FROM DATE(o.created_at)), EXTRACT(QUARTER FROM DATE(o.created_at))
+ORDER BY year, quarter
+LIMIT 1000
+```
 
 EXAMPLE for "Customer churn analysis":
 ```sql
