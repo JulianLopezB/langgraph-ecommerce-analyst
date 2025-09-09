@@ -60,7 +60,7 @@ class LoggingConfig(BaseModel):
         description="Log format string"
     )
     file_path: str = Field(default="logs/agent.log", description="Main log file path")
-    console_output: bool = Field(default=True, description="Enable console output")
+    console_output: bool = Field(default=False, description="Enable console output")
     file_output: bool = Field(default=True, description="Enable file output")
 
 
