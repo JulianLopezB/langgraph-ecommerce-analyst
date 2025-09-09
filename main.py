@@ -17,7 +17,7 @@ from cli.interface import main as cli_main
 from config import config
 
 
-def setup_logging(debug: bool = False):
+def setup_logging(debug: bool = False) -> None:
     """Set up logging configuration."""
     from logging_config import setup_logging as setup_centralized_logging
     
@@ -26,7 +26,7 @@ def setup_logging(debug: bool = False):
     setup_centralized_logging(debug=debug, log_file=log_file)
 
 
-def check_environment():
+def check_environment() -> None:
     """Check that required environment variables and dependencies are available."""
     missing_vars = []
     
@@ -54,7 +54,7 @@ def check_environment():
     print("✅ Environment check passed")
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     try:
         # Setup logging first
@@ -64,7 +64,6 @@ def main():
         check_environment()
         
         # Start CLI (pass debug flag if needed)
-        import sys
         debug_mode = '--debug' in sys.argv
         if debug_mode:
             setup_logging(debug=True)
