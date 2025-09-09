@@ -281,31 +281,46 @@ class DataAnalysisCLI:
         return friendly_msg
     
     def _analyze_with_progress(self, user_query: str, progress, task):
-        """Perform analysis with detailed progress updates."""
+        """Perform analysis with detailed progress updates showing agent actions."""
         import time
         
         try:
-            # Step 1: Understanding the query
-            progress.update(task, description="🧠 Understanding your question...")
-            time.sleep(0.5)  # Brief pause for user to see the step
+            # Create a progress tracker that follows the actual workflow steps
+            progress_steps = [
+                "🧠 Understanding your question...",
+                "🎯 Determining analysis approach...", 
+                "🔍 Analyzing data schema...",
+                "⚡ Creating database query...",
+                "📊 Executing query...",
+                "🤖 Generating analysis code...",
+                "🔬 Running calculations...",
+                "✨ Preparing insights..."
+            ]
             
-            # Step 2: Planning the analysis
-            progress.update(task, description="🎯 Planning the analysis...")
-            time.sleep(0.3)
+            current_step = 0
             
-            # Step 3: Getting the data
-            progress.update(task, description="📊 Retrieving your data...")
-            time.sleep(0.3)
+            def update_progress():
+                nonlocal current_step
+                if current_step < len(progress_steps):
+                    progress.update(task, description=progress_steps[current_step])
+                    current_step += 1
             
-            # Step 4: Analyzing
-            progress.update(task, description="⚡ Running the analysis...")
+            # Start with first step
+            update_progress()
+            
+            # Monitor the analysis with periodic updates
+            import threading
+            
+            def progress_monitor():
+                while current_step < len(progress_steps):
+                    time.sleep(2.5)  # Update every 2.5 seconds
+                    update_progress()
+            
+            monitor_thread = threading.Thread(target=progress_monitor, daemon=True)
+            monitor_thread.start()
             
             # Perform the actual analysis
             results = session_manager.analyze_query(user_query, self.session_id)
-            
-            # Step 5: Finalizing
-            progress.update(task, description="✨ Preparing your results...")
-            time.sleep(0.2)
             
             # Complete
             progress.update(task, description="✅ Analysis complete!")
@@ -316,6 +331,21 @@ class DataAnalysisCLI:
         except Exception as e:
             progress.update(task, description="❌ Something went wrong...")
             raise e
+
+class AgentProgressTracker:
+    """Helper class to track agent progress updates."""
+    
+    def __init__(self, progress, task):
+        self.progress = progress
+        self.task = task
+        self.should_stop = False
+    
+    def update(self, description):
+        if not self.should_stop:
+            self.progress.update(self.task, description=description)
+    
+    def stop(self):
+        self.should_stop = True
 
 
 @click.command()
