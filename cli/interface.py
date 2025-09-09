@@ -270,12 +270,13 @@ class DataAnalysisCLI:
         
         friendly_msg = friendly_messages.get(error_type, "I encountered an unexpected issue")
         
-        # Add specific details if they're helpful
-        if "timeout" in error_msg.lower():
+        # Add specific details if they're helpful - ensure error_msg is a string
+        error_msg_str = str(error_msg) if error_msg else ""
+        if "timeout" in error_msg_str.lower():
             friendly_msg += " (it took too long to complete)"
-        elif "memory" in error_msg.lower():
+        elif "memory" in error_msg_str.lower():
             friendly_msg += " (it needed too much memory)"
-        elif "syntax" in error_msg.lower():
+        elif "syntax" in error_msg_str.lower():
             friendly_msg += " (there was a formatting issue)"
         
         return friendly_msg
