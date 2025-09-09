@@ -103,79 +103,63 @@ class GeminiService:
     
     # Removed old generate_sql_query method - now using AI agents for intelligent SQL generation
     
-    def generate_python_code(self, process_data: Dict[str, Any], data_info: Dict[str, Any]) -> str:
-        """Generate Python code for advanced analysis."""
+    def generate_adaptive_python_code(self, analysis_context: Dict[str, Any]) -> str:
+        """Generate adaptive Python code based on actual data characteristics."""
         with trace_llm_operation(
-            name="gemini_generate_python",
+            name="gemini_generate_adaptive_python",
             model="gemini-1.5-flash",
-            process_type=process_data.get("process_type", "unknown"),
-            data_columns=len(data_info.get("columns", []))
+            original_query=analysis_context.get("original_query", "unknown")[:50],
+            data_shape=str(analysis_context.get("data_characteristics", {}).get("shape", "unknown"))
         ):
+            # Extract context information
+            original_query = analysis_context.get("original_query", "")
+            process_data = analysis_context.get("process_data", {})
+            data_characteristics = analysis_context.get("data_characteristics", {})
+            sql_explanation = analysis_context.get("sql_explanation", "")
+            query_intent = analysis_context.get("query_intent", "")
+            
             prompt = f"""
-        Generate Python code for this data analysis task:
+        Generate Python code that adapts to the actual data characteristics:
 
-        Process Type: {process_data['process_type']}
-        Reasoning: {process_data['reasoning']}
-        Complexity: {process_data['complexity_level']}
-
-        Data Information:
-        - DataFrame variable name: df
-        - Columns: {data_info.get('columns', [])}
-        - Data types: {data_info.get('dtypes', {})}
-        - Shape: {data_info.get('shape', 'unknown')}
-
-        SPECIFIC TASK: If this is RFM analysis, create customer segments using:
-        1. Calculate RFM quintiles for each metric
-        2. Create RFM segments (e.g., Champions, Potential Loyalists, etc.)
-        3. Generate segment analysis and recommendations
+        USER REQUEST: "{original_query}"
+        INTENT: {query_intent}
+        
+        ACTUAL DATA CHARACTERISTICS:
+        - Shape: {data_characteristics.get('shape', 'unknown')}
+        - Columns: {data_characteristics.get('columns', [])}
+        - Data Types: {str(data_characteristics.get('data_types', {}))}
+        - Numeric Columns: {data_characteristics.get('numeric_columns', [])}
+        - DateTime Columns: {data_characteristics.get('datetime_columns', [])}
+        - Sample Values: {str(data_characteristics.get('sample_values', {}))}
+        - Forecasting Ready: {data_characteristics.get('forecasting_ready', False)}
+        
+        GENERATE ROBUST CODE THAT:
+        1. Works with THIS specific data structure
+        2. Uses appropriate algorithms for the data size
+        3. Handles the actual column names and types
+        4. Creates meaningful visualizations
+        5. Provides insights relevant to the user's request
+        
+        FOR FORECASTING SPECIFICALLY:
+        - Use whatever fits the data (linear, polynomial, exponential models)
+        - Plot historical data and forecasted trend
+        - Don't force complex models if data is limited
+        - Generate 3-month projections with confidence bounds
+        - Be pragmatic: use what works, not what's theoretically best
 
         Requirements:
-        1. Use only allowed libraries: pandas, numpy, matplotlib, seaborn, plotly, sklearn, scipy, statsmodels
-        2. Assume DataFrame 'df' is already available
-        3. Create meaningful visualizations where appropriate
+        1. Use allowed libraries: pandas, numpy, matplotlib, seaborn, plotly, sklearn, scipy
+        2. DataFrame 'df' is already available with the columns shown above
+        3. Use try-except blocks for robustness
         4. Generate insights and summary statistics
-        5. Handle missing data appropriately
-        6. Include print statements for key findings
-        7. Use descriptive variable names
-
-        CRITICAL - Robust Data Handling:
-        8. When using pd.qcut() or pd.cut(), always set duplicates='drop' to handle duplicate bin edges
-        9. Check for sufficient data variance before binning (use .nunique() > 1)
-        10. Handle edge cases where data has limited variation or small sample sizes
-        11. Use try-except blocks for potentially problematic operations like binning
-        12. For RFM scoring, use simple numeric scoring (1-5) instead of accessing .codes on intervals
-        13. Convert categorical results to strings/integers for easier processing
+        5. Create visualizations that help understand the data and results
+        6. Store final results in 'analysis_results' variable
         
-        Example robust binning and scoring:
-        try:
-            if column.nunique() > 5:
-                df['binned'] = pd.qcut(column, q=5, duplicates='drop', labels=False) + 1
-            else:
-                df['binned'] = pd.cut(column, bins=min(3, column.nunique()), duplicates='drop', labels=False) + 1
-        except ValueError:
-            df['binned'] = 1
-            
-        CRITICAL - RFM Scoring Pattern:
-        # Correct RFM scoring approach
-        df['R_Score'] = pd.qcut(df['Recency'], q=5, duplicates='drop', labels=[5,4,3,2,1])
-        df['F_Score'] = pd.qcut(df['Frequency'], q=5, duplicates='drop', labels=[1,2,3,4,5]) 
-        df['M_Score'] = pd.qcut(df['Monetary'], q=5, duplicates='drop', labels=[1,2,3,4,5])
-        # Convert to integers for calculation
-        df['RFM_Score'] = df['R_Score'].astype(int) * 100 + df['F_Score'].astype(int) * 10 + df['M_Score'].astype(int)
-
-        CRITICAL FORMATTING REQUIREMENTS:
-        1. Generate ONLY valid Python code, no explanations or markdown
-        2. Do NOT include markdown code blocks (```python or ```)  
-        3. Start directly with import statements
-        4. End with storing results in 'analysis_results' variable
-        5. Ensure all syntax is valid Python
-
-        EXAMPLE START:
-        import pandas as pd
-        import numpy as np
-        
-        # Your analysis code here
-        analysis_results = {...}
+        CODE FORMATTING:
+        - Generate ONLY valid Python code, no explanations
+        - Start with import statements
+        - End with: analysis_results = dict with key_findings, forecast, and plots
+        - Use print() statements to show progress and findings
         """
             
             response = self.generate_text(prompt, temperature=0.4)
@@ -189,7 +173,7 @@ class GeminiService:
                 "python_generation_prompt_length": len(prompt),
                 "generated_code_length": len(python_code),
                 "process_type": process_data.get("process_type", "unknown"),
-                "data_shape": str(data_info.get("shape", "unknown"))
+                "data_shape": str(data_characteristics.get("shape", "unknown"))
             })
             
             return python_code
