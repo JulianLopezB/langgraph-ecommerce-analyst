@@ -9,6 +9,11 @@ from services.llm_service import GeminiService
 from logging_config import get_logger
 from tracing.langsmith_setup import tracer, trace_agent_operation
 
+# LangChain SQL validation imports
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_google_genai import ChatGoogleGenerativeAI
+
 logger = get_logger(__name__)
 
 
@@ -30,6 +35,10 @@ class SQLGenerationAgent:
     def __init__(self):
         """Initialize the SQL generation agent."""
         self.llm_service = GeminiService()
+        
+        # Initialize LangChain SQL validator
+        self._init_sql_validator()
+        
         logger.info("SQLGenerationAgent initialized")
     
     def generate_sql(self, query: str, data_understanding: DataUnderstanding, 
@@ -66,8 +75,8 @@ class SQLGenerationAgent:
                 # Apply final optimizations and validation
                 sql_result = self._optimize_and_validate(sql_result, data_understanding)
                 
-                # Additional BigQuery syntax cleaning
-                sql_result.sql_query = self._clean_bigquery_syntax(sql_result.sql_query)
+                # Use LangChain SQL validation for robust query checking
+                sql_result.sql_query = self._validate_sql_with_langchain(sql_result.sql_query)
                 
                 # Log metrics
                 tracer.log_metrics({
@@ -157,16 +166,43 @@ SQL GENERATION REQUIREMENTS:
    - For RFM: DATE_DIFF(CURRENT_DATE(), DATE(o.created_at), DAY) AS days_since_last_order
 
 7. **CRITICAL - GROUP BY Rules**:
-   - All non-aggregate columns in SELECT must be in GROUP BY
-   - Do NOT include aggregate functions (SUM, COUNT, AVG) in GROUP BY
+   - EVERY non-aggregate column in SELECT must be in GROUP BY
+   - Do NOT include aggregate functions (SUM, COUNT, AVG) in GROUP BY  
    - For time series: GROUP BY DATE(created_at), not SUM(revenue)
-   - Example: SELECT DATE(o.created_at) as date, SUM(oi.sale_price) GROUP BY DATE(o.created_at)
+   - If selecting o.order_id, SUM(oi.sale_price) → must GROUP BY o.order_id
+   - If selecting DATE(o.created_at), SUM(revenue) → must GROUP BY DATE(o.created_at)
+   - If selecting p.name, COUNT(*) → must GROUP BY p.name
+   - Use table aliases consistently: GROUP BY o.user_id (not just user_id)
+   
+   EXAMPLES:
+   ✅ CORRECT: SELECT DATE(o.created_at), SUM(oi.sale_price) GROUP BY DATE(o.created_at)
+   ✅ CORRECT: SELECT o.user_id, COUNT(o.order_id) GROUP BY o.user_id  
+   ❌ WRONG: SELECT o.user_id, o.order_id, SUM(oi.sale_price) GROUP BY o.user_id
+   ❌ WRONG: SELECT DATE(o.created_at), SUM(oi.sale_price) GROUP BY SUM(oi.sale_price)
 
 8. **CRITICAL - Column References**:
    - Use EXACT column names from the schema details above
    - Always use proper table aliases (e.g., p.name, oi.sale_price)
    - Double-check that all referenced columns exist in their respective tables
    - For revenue analysis, use order_items.sale_price (NOT product_id from orders)
+
+9. **CRITICAL - SQL Syntax Validation**:
+   - Ensure all parentheses are balanced
+   - No trailing commas in SELECT clauses
+   - Proper WHERE clause syntax
+   - Valid date range filtering
+   - Complete statements (no fragments)
+
+10. **CRITICAL - FORECASTING QUERIES**:
+   - For "forecast", "predict", or "future" requests: SQL should ONLY retrieve HISTORICAL data
+   - DO NOT generate future dates or forecasted values in SQL - that's Python's job!
+   - Retrieve past 12+ months of historical sales data for time series analysis
+   - Use actual dates from database (o.created_at), not artificially generated future dates
+   - Python will analyze historical patterns and generate future predictions
+   
+   Example for forecasting: Get historical monthly sales for Python to analyze
+   ✅ CORRECT: SELECT DATE_TRUNC(DATE(o.created_at), MONTH) as month, SUM(oi.sale_price) as revenue
+   ❌ WRONG: SELECT '2025-10-01' as future_month, AVG(revenue) as forecasted_revenue
 
 RESPONSE FORMAT:
 {{
@@ -215,20 +251,26 @@ GROUP BY o.user_id
 LIMIT 1000
 ```
 
-EXAMPLE for "Forecast sales" (time series data):
+EXAMPLE for "Forecast sales" (HISTORICAL data for Python forecasting):
 ```sql
 SELECT 
-    DATE(o.created_at) as order_date,
-    COUNT(DISTINCT o.order_id) as daily_orders,
-    SUM(oi.sale_price) as daily_revenue
+    DATE_TRUNC(DATE(o.created_at), MONTH) as month,
+    SUM(oi.sale_price) as monthly_revenue,
+    COUNT(DISTINCT o.order_id) as monthly_orders,
+    COUNT(DISTINCT o.user_id) as unique_customers
 FROM `bigquery-public-data.thelook_ecommerce.orders` o
 JOIN `bigquery-public-data.thelook_ecommerce.order_items` oi 
     ON o.order_id = oi.order_id
-WHERE o.created_at >= DATE_SUB(CURRENT_DATE(), INTERVAL 365 DAY)
-GROUP BY DATE(o.created_at)
-ORDER BY order_date
+WHERE o.created_at >= DATE_SUB(CURRENT_DATE(), INTERVAL 18 MONTH)
+GROUP BY DATE_TRUNC(DATE(o.created_at), MONTH)
+ORDER BY month
 LIMIT 1000
 ```
+
+CRITICAL FOR FORECASTING: 
+- SQL retrieves HISTORICAL monthly data (past 18 months)
+- Python will analyze trends and predict future 3 months
+- NO future dates generated in SQL - only actual historical dates!
 
 EXAMPLE for "Customer churn analysis":
 ```sql
@@ -445,18 +487,111 @@ ANALYSIS PATTERNS:
             confidence=sql_result.confidence
         )
     
-    def _clean_bigquery_syntax(self, sql_query: str) -> str:
-        """Clean BigQuery-specific syntax issues."""
-        # Remove problematic characters that might cause syntax errors
-        sql_query = sql_query.replace('%', '')  # Remove percentage signs
-        sql_query = sql_query.replace('\\n', ' ')  # Replace newlines
-        sql_query = sql_query.replace('\\t', ' ')  # Replace tabs
+    
+    def _init_sql_validator(self):
+        """Initialize LangChain SQL validation chain."""
+        try:
+            # Initialize Gemini for LangChain validation
+            from config import config
+            
+            self.langchain_llm = ChatGoogleGenerativeAI(
+                model="gemini-1.5-flash",
+                google_api_key=config.api_configurations.gemini_api_key,
+                temperature=0.1
+            )
+            
+            # Define the BigQuery-specific validation prompt
+            validation_system_prompt = """Double check the BigQuery SQL query for common mistakes, including:
+            - Using NOT IN with NULL values
+            - Using UNION when UNION ALL should have been used  
+            - Using BETWEEN for exclusive ranges
+            - Data type mismatch in predicates
+            - Properly quoting identifiers with backticks for BigQuery
+            - Using the correct number of arguments for functions
+            - Casting to the correct data type
+            - Using the proper columns for joins
+            - GROUP BY aggregation rules: ALL non-aggregate columns in SELECT must be in GROUP BY
+            - Do NOT include aggregate functions (SUM, COUNT, AVG) in GROUP BY clause
+            - Table alias consistency between SELECT and GROUP BY
+            - BigQuery date functions: DATE(timestamp_column), DATE_DIFF syntax
+            - Complete table paths: `bigquery-public-data.thelook_ecommerce.TABLE_NAME`
+            
+            CRITICAL: If selecting individual columns with aggregates, ensure every non-aggregate column appears in GROUP BY.
+            
+            Examples of CORRECT GROUP BY:
+            ✅ SELECT DATE(o.created_at), SUM(oi.sale_price) GROUP BY DATE(o.created_at)
+            ✅ SELECT o.user_id, COUNT(*) GROUP BY o.user_id
+            
+            Examples of WRONG GROUP BY:
+            ❌ SELECT o.user_id, o.order_id, SUM(oi.sale_price) GROUP BY o.user_id  (missing o.order_id in GROUP BY)
+            ❌ SELECT DATE(o.created_at), SUM(oi.sale_price) GROUP BY SUM(oi.sale_price)  (aggregate in GROUP BY)
+            
+            If there are any mistakes, rewrite the query correctly.
+            If there are no mistakes, reproduce the original query exactly.
+            Output ONLY the final SQL query, no explanations."""
+            
+            # Create the validation prompt template
+            self.validation_prompt = ChatPromptTemplate.from_messages([
+                ("system", validation_system_prompt),
+                ("human", "Validate this BigQuery SQL query:\n\n{query}")
+            ])
+            
+            # Create the validation chain
+            self.sql_validation_chain = self.validation_prompt | self.langchain_llm | StrOutputParser()
+            
+            logger.info("LangChain SQL validator initialized successfully")
+            
+        except Exception as e:
+            logger.warning(f"Failed to initialize LangChain SQL validator: {e}")
+            self.sql_validation_chain = None
+    
+    def _validate_sql_with_langchain(self, sql_query: str) -> str:
+        """Validate SQL query using LangChain validation chain."""
+        if not hasattr(self, 'sql_validation_chain') or self.sql_validation_chain is None:
+            logger.warning("LangChain SQL validator not available, using basic cleaning")
+            return self._validate_and_clean_sql(sql_query)
         
-        # Clean up multiple spaces
-        import re
-        sql_query = re.sub(r'\s+', ' ', sql_query)
-        
-        return sql_query.strip()
+        try:
+            # Use LangChain validation chain
+            validated_sql = self.sql_validation_chain.invoke({"query": sql_query})
+            
+            # Clean up the response
+            validated_sql = validated_sql.strip()
+            if validated_sql.startswith("```sql"):
+                validated_sql = validated_sql[6:]
+            elif validated_sql.startswith("```"):
+                validated_sql = validated_sql[3:]
+            if validated_sql.endswith("```"):
+                validated_sql = validated_sql[:-3]
+            
+            # Basic cleanup
+            validated_sql = validated_sql.strip()
+            if validated_sql.endswith(';'):
+                validated_sql = validated_sql[:-1]
+            
+            # Ensure LIMIT clause
+            if 'LIMIT' not in validated_sql.upper():
+                validated_sql += ' LIMIT 10000'
+            
+            logger.info("SQL query validated successfully with LangChain")
+            return validated_sql
+            
+        except Exception as e:
+            logger.warning(f"LangChain SQL validation failed: {e}, falling back to basic cleaning")
+            # Basic fallback cleaning only
+            validated_sql = sql_query.strip()
+            if validated_sql.startswith("```sql"):
+                validated_sql = validated_sql[6:]
+            elif validated_sql.startswith("```"):
+                validated_sql = validated_sql[3:]
+            if validated_sql.endswith("```"):
+                validated_sql = validated_sql[:-3]
+            validated_sql = validated_sql.strip()
+            if validated_sql.endswith(';'):
+                validated_sql = validated_sql[:-1]
+            if 'LIMIT' not in validated_sql.upper():
+                validated_sql += ' LIMIT 10000'
+            return validated_sql
     
     def _create_fallback_sql(self, query: str, data_understanding: DataUnderstanding) -> SQLGenerationResult:
         """Create a basic fallback SQL when generation fails."""
