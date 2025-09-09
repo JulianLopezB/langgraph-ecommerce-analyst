@@ -1,8 +1,9 @@
 """LLM service for Google Gemini integration."""
 import os
 import time
-from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
+from typing import Optional, Dict, Any, List
+
 import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
@@ -99,9 +100,6 @@ class GeminiService:
                 logger.error(f"Error generating text with Gemini: {str(e)}")
                 raise
     
-    # Removed old classify_intent method - now using AI agents for process type classification
-    
-    # Removed old generate_sql_query method - now using AI agents for intelligent SQL generation
     
     def generate_adaptive_python_code(self, analysis_context: Dict[str, Any]) -> str:
         """Generate adaptive Python code based on actual data characteristics."""
@@ -133,42 +131,54 @@ class GeminiService:
         - Sample Values: {str(data_characteristics.get('sample_values', {}))}
         - Forecasting Ready: {data_characteristics.get('forecasting_ready', False)}
         
-        ANALYZE THE USER'S REQUEST AND GENERATE APPROPRIATE CODE:
+        USER REQUEST: "{original_query}"
         
-        The user asked: "{original_query}"
+        CRITICAL: Create code that provides EXACTLY what the user asked for with DETAILED results.
         
-        CRITICAL: Generate code that DIRECTLY answers their specific question.
+        WHAT THE USER WANTS VS WHAT TO GENERATE:
         
-        Examples of what different requests need:
-        - "Segment customers" → Create distinct customer groups with names and characteristics
-        - "RFM analysis" → Calculate scores AND create segments like Champions, At Risk, etc.
-        - "Forecast sales" → Build predictive models and generate future projections
-        - "Product recommendations" → Generate personalized product suggestions
-        - "Sales trends" → Analyze patterns over time with trend analysis
+        "RFM analysis" or "segment customers":
+        → Calculate R, F, M scores (1-5) using quintiles for each customer
+        → Create named segments: Champions (555), Loyal (444), Potential (543), At Risk (211), etc.
+        → Count customers in each segment: "Champions: 850 customers (8.5%), avg $420 spend"
+        → Show segment table with counts, percentages, and average metrics per segment
         
-        DO NOT just provide statistics - provide the specific analysis they requested.
+        "Top X users" or "show me users":
+        → Return actual user IDs, names, and their specific metrics in a detailed table
+        → Include total spending, number of purchases, average order value, last purchase date
+        → Show exact numbers for each user (purchases, spending, etc.)
+        → Format as: "User ID 12345 (John Doe): 7 purchases, $2,850 total, $407 avg order, last: 15 days ago"
         
-        REQUIREMENTS:
-        1. Use the actual column names: {data_characteristics.get('columns', [])}
-        2. Answer their exact question, not a related question
-        3. If they want segments: create labeled groups with percentages
-        4. If they want forecasts: create future predictions
-        5. If they want trends: show patterns over time
-        6. Include specific numbers, percentages, and concrete insights
+        "Product performance" or "top products":
+        → List actual product names, IDs, and performance metrics
+        → Include detailed rankings with specific numbers
+        
+        "Forecast" or "predict":
+        → Generate actual future predictions with dates and values
+        → Include confidence intervals and trend analysis
+        
+        GENERATE COMPREHENSIVE, DETAILED RESULTS - NOT SUMMARY STATISTICS!
+        
+        Use columns: {data_characteristics.get('columns', [])}
+        Data shape: {data_characteristics.get('shape', 'unknown')}
 
         Requirements:
         1. Use allowed libraries: pandas, numpy, matplotlib, seaborn, plotly, sklearn, scipy
         2. DataFrame 'df' is already available with the columns shown above
         3. Use try-except blocks for robustness
-        4. Generate insights and summary statistics
-        5. Create visualizations that help understand the data and results
-        6. Store final results in 'analysis_results' variable
+        4. ALWAYS check data types before applying operations (use df.dtypes)
+        5. Handle date/datetime conversions carefully (check if column is actually datetime)
+        6. Generate insights and summary statistics
+        7. Create visualizations that help understand the data and results
+        8. Store final results in 'analysis_results' variable
         
         CODE FORMATTING:
         - Generate ONLY valid Python code, no explanations
         - Start with import statements
-        - End with: analysis_results = dict with key_findings, forecast, and plots
-        - Use print() statements to show progress and findings
+        - Include print() statements showing key results and insights
+        - Focus on business-relevant findings, not calculation details
+        - End with: analysis_results = dict with key_findings and detailed_results
+        - Avoid explaining basic operations like sorting or percentage calculations
         """
             
             response = self.generate_text(prompt, temperature=0.4)
@@ -204,21 +214,23 @@ class GeminiService:
         Format exactly like this:
 
         Key Findings:
-        • [Specific finding with actual numbers/percentages]
-        • [Another finding with concrete data]
-        • [One more key insight with metrics]
+        • [Specific finding with actual numbers/percentages/names/IDs]
+        • [Another finding with concrete data and details]
+        • [One more key insight with comprehensive metrics]
 
         Business Impact:
-        [2-3 sentences maximum explaining what this means strategically]
+        [2-3 sentences explaining strategic implications and opportunities]
 
         Requirements:
-        - Include specific numbers, percentages, dollar amounts from the data
-        - Keep findings to 3-4 maximum for readability
-        - Make business impact concise but insightful
-        - Use concrete data points, not vague descriptions
-        - Each finding should be one clear sentence with metrics
-        - Focus on the specific analysis the user requested
-        - Provide actionable insights relevant to their question
+        - Include specific numbers, percentages, dollar amounts, names, and IDs from the data
+        - Show detailed results that directly answer the user's question
+        - For segments: include segment names, counts, and characteristics  
+        - For top users/products: include actual IDs, names, and metrics
+        - For recommendations: explain the business reasoning (not technical methodology)
+        - Use concrete data points with comprehensive details
+        - Make findings actionable with specific insights
+        - Focus on business insights, not calculation methods
+        - Avoid explaining basic mathematical operations or sorting methods
         """
             
             response = self.generate_text(prompt, temperature=0.6)
