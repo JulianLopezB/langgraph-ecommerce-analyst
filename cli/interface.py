@@ -15,7 +15,7 @@ from prompt_toolkit import prompt
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.completion import WordCompleter
 
-from agent.graph import session_manager
+from workflow.graph import session_manager
 from config import config
 from logging_config import get_logger
 from utils.sql_utils import format_error_message

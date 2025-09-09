@@ -6,8 +6,8 @@ import uuid
 from langgraph.graph import StateGraph, END
 from langchain_core.runnables import RunnableLambda
 
-from agent.state import AnalysisState, create_initial_state, ConversationMessage
-from agent.nodes import workflow_nodes
+from workflow.state import AnalysisState, create_initial_state, ConversationMessage
+from workflow.nodes import workflow_nodes
 from logging_config import get_logger
 
 logger = get_logger(__name__)

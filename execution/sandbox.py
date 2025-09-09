@@ -13,7 +13,7 @@ import numpy as np
 from contextlib import redirect_stdout, redirect_stderr
 
 from config import config
-from agent.state import ExecutionStatus, ExecutionResults
+from workflow.state import ExecutionStatus, ExecutionResults
 
 logger = logging.getLogger(__name__)
 

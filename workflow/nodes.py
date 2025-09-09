@@ -5,7 +5,7 @@ from typing import Dict, Any
 
 import pandas as pd
 
-from agent.state import AnalysisState, ProcessType, ConversationMessage, AnalysisLineage, GeneratedCode
+from workflow.state import AnalysisState, ProcessType, ConversationMessage, AnalysisLineage, GeneratedCode
 from agents.process_classifier import process_classifier, ProcessTypeResult
 from agents.schema_agent import schema_agent
 from agents.sql_agent import sql_agent
