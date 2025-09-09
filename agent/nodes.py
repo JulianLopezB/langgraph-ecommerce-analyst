@@ -234,7 +234,7 @@ class WorkflowNodes:
     
     def generate_python_code(self, state: AnalysisState) -> AnalysisState:
         """
-        Generate Python code for advanced analysis.
+        Generate adaptive Python code based on actual data inspection.
         
         Args:
             state: Current analysis state
@@ -242,26 +242,54 @@ class WorkflowNodes:
         Returns:
             Updated state with generated code
         """
-        logger.info("Generating Python analysis code")
+        logger.info("Generating data-adaptive Python analysis code")
         
         try:
-            process_data = state["analysis_outputs"]["process_data"]
-            data_info = state["analysis_outputs"]["data_info"]
+            # First, inspect the actual data to understand its characteristics
+            data_characteristics = self._inspect_data_characteristics(state["raw_dataset"])
             
-            # Generate Python code using LLM
-            python_code = self.llm_service.generate_python_code(process_data, data_info)
+            # Prepare comprehensive analysis context with data insights
+            analysis_context = {
+                # Original user request and intent
+                "original_query": state["user_query"],
+                "query_intent": state["analysis_outputs"].get("data_understanding", {}).get("query_intent", state["user_query"]),
+                
+                # Process classification results
+                "process_data": state["analysis_outputs"]["process_data"],
+                
+                # SQL execution context
+                "sql_query": state.get("sql_query", ""),
+                "sql_explanation": state["analysis_outputs"].get("sql_metadata", {}).get("explanation", ""),
+                
+                # Enhanced data information with characteristics
+                "data_info": state["analysis_outputs"]["data_info"],
+                "data_characteristics": data_characteristics,
+                
+                # Schema understanding context
+                "data_understanding": state["analysis_outputs"].get("data_understanding", {}),
+                "sql_metadata": state["analysis_outputs"].get("sql_metadata", {})
+            }
             
-            # Create GeneratedCode object
+            # Generate Python code using data-adaptive approach
+            python_code = self.llm_service.generate_adaptive_python_code(analysis_context)
+            
+            # Create GeneratedCode object with enhanced parameters
             generated_code = GeneratedCode(
                 code_content=python_code,
-                template_used=process_data.get("process_type", "unknown"),
-                parameters={"process_data": process_data, "data_info": data_info}
+                template_used=analysis_context["process_data"].get("process_type", "unknown"),
+                parameters={
+                    "analysis_context": analysis_context,
+                    "original_query": state["user_query"],
+                    "sql_query": state.get("sql_query", ""),
+                    "data_characteristics": data_characteristics
+                }
             )
             
             state["generated_code"] = generated_code
             state["next_step"] = "validate_code"
             
-            logger.info("Python code generated successfully")
+            logger.info(f"Data-adaptive Python code generated for: {state['user_query'][:50]}... "
+                       f"(Data shape: {data_characteristics.get('shape', 'unknown')})")
             
         except Exception as e:
             logger.error(f"Error generating Python code: {str(e)}")
@@ -269,6 +297,59 @@ class WorkflowNodes:
             state["next_step"] = "handle_error"
         
         return state
+    
+    def _inspect_data_characteristics(self, df) -> Dict[str, Any]:
+        """Inspect actual data to understand its characteristics for adaptive code generation."""
+        if df is None or df.empty:
+            return {"error": "No data available", "shape": (0, 0)}
+        
+        try:
+            characteristics = {
+                "shape": df.shape,
+                "columns": df.columns.tolist(),
+                "data_types": df.dtypes.to_dict(),
+                "non_null_counts": df.count().to_dict(),
+                "numeric_columns": df.select_dtypes(include=['number']).columns.tolist(),
+                "datetime_columns": [],
+                "categorical_columns": df.select_dtypes(include=['object', 'string']).columns.tolist(),
+                "sample_values": {}
+            }
+            
+            # Detect potential datetime columns
+            for col in df.columns:
+                if df[col].dtype == 'object':
+                    sample_val = df[col].dropna().iloc[0] if not df[col].dropna().empty else None
+                    if sample_val and ('date' in col.lower() or 'time' in col.lower() or 'month' in col.lower()):
+                        characteristics["datetime_columns"].append(col)
+                        
+                # Store sample values for understanding
+                if not df[col].dropna().empty:
+                    characteristics["sample_values"][col] = df[col].dropna().iloc[:3].tolist()
+            
+            # Assess data quality for time series
+            if len(df) > 0:
+                characteristics["time_series_capable"] = len(df) >= 3
+                characteristics["seasonal_analysis_capable"] = len(df) >= 24
+                characteristics["trend_analysis_capable"] = len(df) >= 6
+                
+            # Identify potential time and value columns for forecasting
+            if characteristics["datetime_columns"] and characteristics["numeric_columns"]:
+                characteristics["forecasting_ready"] = True
+                characteristics["time_column"] = characteristics["datetime_columns"][0]
+                characteristics["value_column"] = characteristics["numeric_columns"][0]
+            else:
+                characteristics["forecasting_ready"] = False
+                
+            logger.debug(f"Data characteristics: {characteristics}")
+            return characteristics
+            
+        except Exception as e:
+            logger.warning(f"Error inspecting data characteristics: {e}")
+            return {
+                "error": str(e),
+                "shape": df.shape if df is not None else (0, 0),
+                "columns": df.columns.tolist() if df is not None else []
+            }
     
     def validate_code(self, state: AnalysisState) -> AnalysisState:
         """
