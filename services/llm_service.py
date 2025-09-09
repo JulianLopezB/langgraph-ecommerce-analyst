@@ -9,7 +9,6 @@ from google.generativeai.types import HarmCategory, HarmBlockThreshold
 from config import config
 from logging_config import get_logger
 from tracing.langsmith_setup import tracer, trace_llm_operation
-from services.intent_models import IntentClassificationResult, CLASSIFY_INTENT_FUNCTION
 
 logger = get_logger(__name__)
 
@@ -100,186 +99,35 @@ class GeminiService:
                 logger.error(f"Error generating text with Gemini: {str(e)}")
                 raise
     
-    def classify_intent(self, user_query: str) -> IntentClassificationResult:
-        """Classify user intent for analysis routing using function calling."""
-        with trace_llm_operation(
-            name="gemini_classify_intent",
-            model="gemini-1.5-flash",
-            query_length=len(user_query)
-        ):
-            prompt = f"""
-            Analyze the following user query and classify the intent for data analysis:
-
-            Query: "{user_query}"
-
-            Consider these intent categories:
-            - data_exploration: Basic data inspection, summaries, data quality checks
-            - customer_analysis: Customer segmentation, behavior analysis, churn, CLV  
-            - product_analysis: Product performance, recommendations, inventory
-            - sales_analysis: Sales trends, forecasting, revenue analysis
-            - advanced_analytics: Machine learning, statistical modeling, complex algorithms
-            - visualization: Creating charts, graphs, dashboards
-
-            Determine:
-            1. The most appropriate intent category
-            2. Confidence score (0.0-1.0) 
-            3. Whether Python analysis is needed beyond SQL
-            4. Key entities mentioned (customers, products, dates, metrics)
-            5. Brief description of the analysis type
-            6. Complexity level (low/medium/high)
-
-            Use the classify_user_intent function to provide structured output.
-            """
-            
-            try:
-                # Configure model for function calling
-                function_calling_model = genai.GenerativeModel(
-                    model_name=os.getenv('GEMINI_MODEL', 'gemini-1.5-flash'),
-                    safety_settings=self.safety_settings,
-                    tools=[{"function_declarations": [CLASSIFY_INTENT_FUNCTION]}]
-                )
-                
-                response = function_calling_model.generate_content(
-                    prompt,
-                    generation_config=genai.types.GenerationConfig(
-                        temperature=0.3,
-                        max_output_tokens=1024
-                    )
-                )
-                
-                # Extract function call result
-                if response.candidates and response.candidates[0].content.parts:
-                    for part in response.candidates[0].content.parts:
-                        if hasattr(part, 'function_call') and part.function_call:
-                            function_call = part.function_call
-                            if function_call.name == "classify_user_intent":
-                                # Convert function call args to Pydantic model
-                                try:
-                                    args = dict(function_call.args)
-                                    logger.debug(f"Function call args: {args}")
-                                    
-                                    # Handle IntentType conversion
-                                    if 'intent' in args:
-                                        from agent.state import IntentType
-                                        intent_value = args['intent']
-                                        args['intent'] = IntentType(intent_value)
-                                    
-                                    result = IntentClassificationResult(**args)
-                                    
-                                    # Log successful function calling metrics
-                                    tracer.log_metrics({
-                                        "intent_parsing_success": True,
-                                        "classified_intent": result.intent.value,
-                                        "confidence_score": result.confidence,
-                                        "function_calling_used": True
-                                    })
-                                    
-                                    return result
-                                except Exception as e:
-                                    logger.error(f"Error creating IntentClassificationResult: {e}")
-                                    logger.debug(f"Function call args were: {args}")
-                                    # Continue to fallback
-                
-                # Fallback if no function call found
-                logger.warning("No function call found in response, using fallback")
-                tracer.log_metrics({
-                    "intent_parsing_success": False,
-                    "function_calling_used": False,
-                    "fallback_reason": "no_function_call"
-                })
-                
-                from agent.state import IntentType
-                return IntentClassificationResult(
-                    intent=IntentType.UNKNOWN,
-                    confidence=0.0,
-                    needs_python=True,
-                    entities=[],
-                    analysis_type="unknown",
-                    complexity="high"
-                )
-                
-            except Exception as e:
-                logger.error(f"Error in function calling intent classification: {e}")
-                
-                # Log error metrics
-                tracer.log_metrics({
-                    "intent_parsing_success": False,
-                    "function_calling_used": True,
-                    "error": str(e)
-                })
-                
-                from agent.state import IntentType
-                return IntentClassificationResult(
-                    intent=IntentType.UNKNOWN,
-                    confidence=0.0,
-                    needs_python=True,
-                    entities=[],
-                    analysis_type="unknown",
-                    complexity="high"
-                )
+    # Removed old classify_intent method - now using AI agents for process type classification
     
-    def generate_sql_query(self, intent_data: Dict[str, Any], schema_info: Dict[str, Any]) -> str:
-        """Generate SQL query based on user intent and schema."""
-        with trace_llm_operation(
-            name="gemini_generate_sql",
-            model="gemini-1.5-flash",
-            intent_type=intent_data.get("intent", "unknown"),
-            schema_tables=len(schema_info)
-        ):
-            prompt = f"""
-        Generate a BigQuery SQL query for this analysis request:
-
-        Intent: {intent_data['intent']}
-        Analysis Type: {intent_data['analysis_type']}
-        Entities: {intent_data['entities']}
-        Complexity: {intent_data['complexity']}
-
-        Available tables and schema:
-        {schema_info}
-
-        Requirements:
-        1. Use the dataset `bigquery-public-data.thelook_ecommerce`
-        2. Optimize for performance and cost
-        3. Limit results to reasonable size (10,000 rows max)
-        4. Include meaningful column aliases
-        5. Add appropriate filters and constraints
-
-        Generate ONLY the SQL query without explanations or markdown formatting.
-        """
-            
-            response = self.generate_text(prompt, temperature=0.2)
-            sql_query = response.content.strip()
-            
-            # Log SQL generation metrics
-            tracer.log_metrics({
-                "sql_generation_prompt_length": len(prompt),
-                "generated_sql_length": len(sql_query),
-                "intent_type": intent_data.get("intent", "unknown"),
-                "complexity": intent_data.get("complexity", "unknown")
-            })
-            
-            return sql_query
+    # Removed old generate_sql_query method - now using AI agents for intelligent SQL generation
     
-    def generate_python_code(self, intent_data: Dict[str, Any], data_info: Dict[str, Any]) -> str:
+    def generate_python_code(self, process_data: Dict[str, Any], data_info: Dict[str, Any]) -> str:
         """Generate Python code for advanced analysis."""
         with trace_llm_operation(
             name="gemini_generate_python",
             model="gemini-1.5-flash",
-            intent_type=intent_data.get("intent", "unknown"),
+            process_type=process_data.get("process_type", "unknown"),
             data_columns=len(data_info.get("columns", []))
         ):
             prompt = f"""
         Generate Python code for this data analysis task:
 
-        Intent: {intent_data['intent']}
-        Analysis Type: {intent_data['analysis_type']}
-        Complexity: {intent_data['complexity']}
+        Process Type: {process_data['process_type']}
+        Reasoning: {process_data['reasoning']}
+        Complexity: {process_data['complexity_level']}
 
         Data Information:
         - DataFrame variable name: df
         - Columns: {data_info.get('columns', [])}
         - Data types: {data_info.get('dtypes', {})}
         - Shape: {data_info.get('shape', 'unknown')}
+
+        SPECIFIC TASK: If this is RFM analysis, create customer segments using:
+        1. Calculate RFM quintiles for each metric
+        2. Create RFM segments (e.g., Champions, Potential Loyalists, etc.)
+        3. Generate segment analysis and recommendations
 
         Requirements:
         1. Use only allowed libraries: pandas, numpy, matplotlib, seaborn, plotly, sklearn, scipy, statsmodels
@@ -290,18 +138,57 @@ class GeminiService:
         6. Include print statements for key findings
         7. Use descriptive variable names
 
-        Generate ONLY the Python code without explanations or markdown formatting.
-        Store final results in a variable called 'analysis_results'.
+        CRITICAL - Robust Data Handling:
+        8. When using pd.qcut() or pd.cut(), always set duplicates='drop' to handle duplicate bin edges
+        9. Check for sufficient data variance before binning (use .nunique() > 1)
+        10. Handle edge cases where data has limited variation or small sample sizes
+        11. Use try-except blocks for potentially problematic operations like binning
+        12. For RFM scoring, use simple numeric scoring (1-5) instead of accessing .codes on intervals
+        13. Convert categorical results to strings/integers for easier processing
+        
+        Example robust binning and scoring:
+        try:
+            if column.nunique() > 5:
+                df['binned'] = pd.qcut(column, q=5, duplicates='drop', labels=False) + 1
+            else:
+                df['binned'] = pd.cut(column, bins=min(3, column.nunique()), duplicates='drop', labels=False) + 1
+        except ValueError:
+            df['binned'] = 1
+            
+        CRITICAL - RFM Scoring Pattern:
+        # Correct RFM scoring approach
+        df['R_Score'] = pd.qcut(df['Recency'], q=5, duplicates='drop', labels=[5,4,3,2,1])
+        df['F_Score'] = pd.qcut(df['Frequency'], q=5, duplicates='drop', labels=[1,2,3,4,5]) 
+        df['M_Score'] = pd.qcut(df['Monetary'], q=5, duplicates='drop', labels=[1,2,3,4,5])
+        # Convert to integers for calculation
+        df['RFM_Score'] = df['R_Score'].astype(int) * 100 + df['F_Score'].astype(int) * 10 + df['M_Score'].astype(int)
+
+        CRITICAL FORMATTING REQUIREMENTS:
+        1. Generate ONLY valid Python code, no explanations or markdown
+        2. Do NOT include markdown code blocks (```python or ```)  
+        3. Start directly with import statements
+        4. End with storing results in 'analysis_results' variable
+        5. Ensure all syntax is valid Python
+
+        EXAMPLE START:
+        import pandas as pd
+        import numpy as np
+        
+        # Your analysis code here
+        analysis_results = {...}
         """
             
             response = self.generate_text(prompt, temperature=0.4)
             python_code = response.content.strip()
             
+            # Clean up any markdown formatting that might slip through
+            python_code = self._clean_python_code(python_code)
+            
             # Log Python code generation metrics
             tracer.log_metrics({
                 "python_generation_prompt_length": len(prompt),
                 "generated_code_length": len(python_code),
-                "intent_type": intent_data.get("intent", "unknown"),
+                "process_type": process_data.get("process_type", "unknown"),
                 "data_shape": str(data_info.get("shape", "unknown"))
             })
             
@@ -344,6 +231,38 @@ class GeminiService:
             })
             
             return insights
+    
+    def _clean_python_code(self, code: str) -> str:
+        """Clean Python code by removing markdown formatting."""
+        # Remove markdown code blocks
+        if code.startswith("```python"):
+            code = code[9:]
+        elif code.startswith("```"):
+            code = code[3:]
+        
+        if code.endswith("```"):
+            code = code[:-3]
+        
+        # Remove any leading/trailing whitespace
+        code = code.strip()
+        
+        # Remove any explanation text before the first import or assignment
+        lines = code.split('\n')
+        code_start_idx = 0
+        
+        for i, line in enumerate(lines):
+            line = line.strip()
+            if (line.startswith('import ') or 
+                line.startswith('from ') or 
+                line.startswith('#') or
+                '=' in line):
+                code_start_idx = i
+                break
+        
+        if code_start_idx > 0:
+            code = '\n'.join(lines[code_start_idx:])
+        
+        return code.strip()
     
     def _estimate_tokens(self, text: str) -> int:
         """Estimate token count (rough approximation)."""
