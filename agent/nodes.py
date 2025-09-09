@@ -4,12 +4,16 @@ import json
 import pandas as pd
 from datetime import datetime
 
-from agent.state import AnalysisState, IntentType, ConversationMessage, AnalysisLineage, GeneratedCode
+from agent.state import AnalysisState, ProcessType, ConversationMessage, AnalysisLineage, GeneratedCode
 from services.llm_service import GeminiService
 from code_generation.validators import validator
 from execution.sandbox import secure_executor
 from bq_client import BigQueryRunner
 from logging_config import get_logger
+from tracing.langsmith_setup import tracer, trace_agent_operation
+from agents.process_classifier import process_classifier, ProcessTypeResult
+from agents.schema_agent import schema_agent
+from agents.sql_agent import sql_agent
 
 logger = get_logger(__name__)
 
@@ -24,91 +28,154 @@ class WorkflowNodes:
     
     def understand_query(self, state: AnalysisState) -> AnalysisState:
         """
-        Parse and understand user intent from the query.
+        Parse and understand user intent using AI agents.
         
         Args:
             state: Current analysis state
             
         Returns:
-            Updated state with intent classification
+            Updated state with process type classification
         """
-        logger.info("Understanding user query")
+        with trace_agent_operation(
+            name="understand_query_ai",
+            user_query=state["user_query"],
+            session_id=state["session_id"]
+        ):
+            logger.info("Understanding user query with AI agents")
         
-        try:
-            # Classify user intent using LLM
-            intent_data = self.llm_service.classify_intent(state["user_query"])
+            try:
+                # Get schema information first
+                schema_info = self._get_schema_info()
+                state["data_schema"] = schema_info
+                
+                # Use AI agent to classify process type (replaces intent classification)
+                process_result = process_classifier.classify(state["user_query"], schema_info)
+                
+                # Update state with process type information
+                state["process_type"] = process_result.process_type
+                state["confidence_score"] = process_result.confidence
+                state["needs_python_analysis"] = (process_result.process_type == ProcessType.PYTHON)
+                
+                # Store process classification data
+                state["analysis_outputs"]["process_data"] = {
+                    "process_type": process_result.process_type.value,
+                    "confidence": process_result.confidence,
+                    "reasoning": process_result.reasoning,
+                    "complexity_level": process_result.complexity_level,
+                    "suggested_tables": process_result.suggested_tables
+                }
+                
+                # Log metrics to trace
+                tracer.log_metrics({
+                    "process_type": process_result.process_type.value,
+                    "confidence_score": process_result.confidence,
+                    "needs_python_analysis": state["needs_python_analysis"],
+                    "query_length": len(state["user_query"]),
+                    "complexity_level": process_result.complexity_level
+                })
+                
+                # Add conversation message
+                message = ConversationMessage(
+                    timestamp=datetime.now(),
+                    role="assistant",
+                    content=f"I'll handle this using {process_result.process_type.value.upper()} processing. {process_result.reasoning}",
+                    message_type="query"
+                )
+                state["conversation_history"].append(message)
+                
+                # Determine next step based on process type
+                if process_result.confidence > 0.7:
+                    if process_result.process_type == ProcessType.SQL:
+                        state["next_step"] = "generate_sql"
+                    elif process_result.process_type == ProcessType.PYTHON:
+                        state["next_step"] = "generate_sql"  # Still need data first
+                    elif process_result.process_type == ProcessType.VISUALIZATION:
+                        state["next_step"] = "generate_sql"  # Need data for visualization
+                else:
+                    state["next_step"] = "clarify_query"
+                
+                logger.info(f"Process type classified: {process_result.process_type.value} "
+                          f"(confidence: {process_result.confidence:.2f})")
+                
+            except Exception as e:
+                logger.error(f"Error understanding query: {str(e)}")
+                state["error_context"]["understanding_error"] = str(e)
+                state["next_step"] = "handle_error"
             
-            # Update state with intent information
-            state["intent_classification"] = IntentType(intent_data.get("intent", "unknown"))
-            state["confidence_score"] = intent_data.get("confidence", 0.0)
-            state["needs_python_analysis"] = intent_data.get("needs_python", True)
-            
-            # Store intent data for later use
-            state["analysis_outputs"]["intent_data"] = intent_data
-            
-            # Add conversation message
-            message = ConversationMessage(
-                timestamp=datetime.now(),
-                role="assistant",
-                content=f"I understand you want to perform {intent_data.get('analysis_type', 'analysis')}. Classification confidence: {intent_data.get('confidence', 0.0):.2f}",
-                message_type="query"
-            )
-            state["conversation_history"].append(message)
-            
-            # Determine next step
-            if state["confidence_score"] > 0.7:
-                state["next_step"] = "generate_sql"
-            else:
-                state["next_step"] = "clarify_query"
-            
-            logger.info(f"Intent classified: {state['intent_classification']} (confidence: {state['confidence_score']:.2f})")
-            
-        except Exception as e:
-            logger.error(f"Error understanding query: {str(e)}")
-            state["error_context"]["understanding_error"] = str(e)
-            state["next_step"] = "handle_error"
-        
-        return state
+            return state
     
     def generate_sql(self, state: AnalysisState) -> AnalysisState:
         """
-        Generate SQL query for data retrieval.
+        Generate SQL query using AI agents for intelligent analysis.
         
         Args:
             state: Current analysis state
             
         Returns:
-            Updated state with SQL query
+            Updated state with AI-generated SQL query
         """
-        logger.info("Generating SQL query")
+        logger.info("Generating SQL query using AI agents")
         
         try:
-            # Get schema information for relevant tables
-            schema_info = self._get_schema_info(state["intent_classification"])
-            state["data_schema"] = schema_info
+            # Get process classification data
+            process_data = state["analysis_outputs"]["process_data"]
+            process_result = ProcessTypeResult(
+                process_type=state["process_type"],
+                confidence=state["confidence_score"],
+                reasoning=process_data["reasoning"],
+                complexity_level=process_data["complexity_level"],
+                suggested_tables=process_data["suggested_tables"]
+            )
             
-            # Generate SQL query using LLM
-            intent_data = state["analysis_outputs"]["intent_data"]
-            sql_query = self.llm_service.generate_sql_query(intent_data, schema_info)
+            # Use AI agent to understand data schema semantically
+            data_understanding = schema_agent.understand_data(
+                state["user_query"], 
+                state["data_schema"], 
+                state["process_type"]
+            )
             
-            # Clean and validate SQL
-            sql_query = self._clean_sql_query(sql_query)
-            state["sql_query"] = sql_query
+            # Store data understanding for later use
+            state["analysis_outputs"]["data_understanding"] = {
+                "query_intent": data_understanding.query_intent,
+                "relevant_tables": [table.name for table in data_understanding.relevant_tables],
+                "target_metrics": [metric.name for metric in data_understanding.target_metrics],
+                "grouping_dimensions": [dim.name for dim in data_understanding.grouping_dimensions],
+                "complexity_score": data_understanding.complexity_score
+            }
+            
+            # Use AI agent to generate intelligent SQL
+            sql_result = sql_agent.generate_sql(
+                state["user_query"],
+                data_understanding,
+                process_result
+            )
+            
+            # Update state with SQL results
+            state["sql_query"] = sql_result.sql_query
+            state["analysis_outputs"]["sql_metadata"] = {
+                "explanation": sql_result.explanation,
+                "complexity": sql_result.estimated_complexity,
+                "optimizations": sql_result.optimization_applied,
+                "tables_used": sql_result.tables_used,
+                "metrics_computed": sql_result.metrics_computed,
+                "confidence": sql_result.confidence
+            }
             
             # Add to conversation history
             message = ConversationMessage(
                 timestamp=datetime.now(),
                 role="assistant",
-                content=f"Generated SQL query for data retrieval",
+                content=f"Generated optimized SQL query: {sql_result.explanation}",
                 message_type="query"
             )
             state["conversation_history"].append(message)
             
             state["next_step"] = "execute_sql"
-            logger.info("SQL query generated successfully")
+            logger.info(f"AI-generated SQL complete: {sql_result.estimated_complexity} complexity, "
+                       f"confidence: {sql_result.confidence:.2f}")
             
         except Exception as e:
-            logger.error(f"Error generating SQL: {str(e)}")
+            logger.error(f"Error generating SQL with AI agents: {str(e)}")
             state["error_context"]["sql_generation_error"] = str(e)
             state["next_step"] = "handle_error"
         
@@ -178,17 +245,17 @@ class WorkflowNodes:
         logger.info("Generating Python analysis code")
         
         try:
-            intent_data = state["analysis_outputs"]["intent_data"]
+            process_data = state["analysis_outputs"]["process_data"]
             data_info = state["analysis_outputs"]["data_info"]
             
             # Generate Python code using LLM
-            python_code = self.llm_service.generate_python_code(intent_data, data_info)
+            python_code = self.llm_service.generate_python_code(process_data, data_info)
             
             # Create GeneratedCode object
             generated_code = GeneratedCode(
                 code_content=python_code,
-                template_used=intent_data.get("intent", "unknown"),
-                parameters={"intent": intent_data, "data_info": data_info}
+                template_used=process_data.get("process_type", "unknown"),
+                parameters={"process_data": process_data, "data_info": data_info}
             )
             
             state["generated_code"] = generated_code
@@ -296,34 +363,71 @@ class WorkflowNodes:
     
     def synthesize_results(self, state: AnalysisState) -> AnalysisState:
         """
-        Synthesize analysis results and generate insights.
+        Synthesize analysis results using AI-driven insights (no keyword matching).
         
         Args:
             state: Current analysis state
             
         Returns:
-            Updated state with final insights
+            Updated state with AI-generated insights
         """
-        logger.info("Synthesizing analysis results")
+        logger.info("Synthesizing analysis results with AI")
         
         try:
-            # Prepare results for insight generation
+            # Prepare comprehensive results for AI insight generation
             analysis_results = {}
             
-            # Add data summary
             if state["raw_dataset"] is not None:
                 df = state["raw_dataset"]
-                analysis_results["data_summary"] = {
-                    "rows": len(df),
-                    "columns": len(df.columns),
-                    "column_names": df.columns.tolist()
+                process_type = state["process_type"]
+                
+                logger.debug(f"Synthesizing results for {process_type.value} process")
+                logger.debug(f"DataFrame shape: {df.shape}, columns: {df.columns.tolist()}")
+                
+                # Prepare data for AI analysis (no keyword matching!)
+                # Let the AI understand the data context directly
+                
+                # Get basic data overview
+                data_overview = {
+                    "total_rows": len(df),
+                    "total_columns": len(df.columns),
+                    "column_names": df.columns.tolist(),
+                    "data_types": df.dtypes.to_dict(),
+                    "sample_data": df.head(5).to_dict('records') if len(df) > 0 else []
+                }
+                
+                # Include SQL metadata if available
+                sql_metadata = state["analysis_outputs"].get("sql_metadata", {})
+                data_understanding = state["analysis_outputs"].get("data_understanding", {})
+                
+                # Structure comprehensive results for AI insight generation
+                analysis_results = {
+                    "process_type": process_type.value,
+                    "query_intent": data_understanding.get("query_intent", state["user_query"]),
+                    "data_overview": data_overview,
+                    "sql_explanation": sql_metadata.get("explanation", "Data retrieved successfully"),
+                    "complexity_level": sql_metadata.get("complexity", "medium"),
+                    "tables_used": sql_metadata.get("tables_used", []),
+                    "metrics_computed": sql_metadata.get("metrics_computed", []),
+                    "full_dataset": df.to_dict('records') if len(df) <= 100 else df.head(100).to_dict('records'),
+                    "data_summary_stats": self._generate_summary_stats(df) if len(df) > 0 else {}
+                }
+                
+                logger.debug(f"Prepared comprehensive analysis results with {len(analysis_results['full_dataset'])} records")
+                
+            else:
+                logger.warning("No dataset available for analysis")
+                analysis_results = {
+                    "error": "No data available for analysis",
+                    "process_type": state["process_type"].value if state.get("process_type") else "unknown",
+                    "query_intent": state["user_query"]
                 }
             
             # Add Python analysis results if available
             if "python_results" in state["analysis_outputs"]:
-                analysis_results["analysis_results"] = state["analysis_outputs"]["python_results"]
+                analysis_results["python_analysis"] = state["analysis_outputs"]["python_results"]
             
-            # Generate insights using LLM
+            # Use AI to generate comprehensive insights
             insights = self.llm_service.generate_insights(
                 analysis_results,
                 state["user_query"]
@@ -344,7 +448,7 @@ class WorkflowNodes:
             state["workflow_complete"] = True
             state["next_step"] = "complete"
             
-            logger.info("Analysis results synthesized successfully")
+            logger.info("AI-driven analysis synthesis complete")
             
         except Exception as e:
             logger.error(f"Error synthesizing results: {str(e)}")
@@ -414,8 +518,8 @@ class WorkflowNodes:
         
         return state
     
-    def _get_schema_info(self, intent: IntentType) -> Dict[str, Any]:
-        """Get relevant schema information based on intent."""
+    def _get_schema_info(self) -> Dict[str, Any]:
+        """Get schema information for core tables."""
         try:
             schema_info = {}
             
@@ -434,6 +538,39 @@ class WorkflowNodes:
         except Exception as e:
             logger.error(f"Error getting schema info: {e}")
             return {}
+    
+    def _generate_summary_stats(self, df: pd.DataFrame) -> Dict[str, Any]:
+        """Generate summary statistics for the dataset."""
+        try:
+            stats = {}
+            
+            # Numeric columns statistics
+            numeric_cols = df.select_dtypes(include=['number']).columns
+            if len(numeric_cols) > 0:
+                stats["numeric_summary"] = df[numeric_cols].describe().to_dict()
+            
+            # Categorical columns statistics
+            categorical_cols = df.select_dtypes(include=['object', 'string']).columns
+            if len(categorical_cols) > 0:
+                stats["categorical_summary"] = {}
+                for col in categorical_cols[:5]:  # Limit to first 5 categorical columns
+                    value_counts = df[col].value_counts().head(10)
+                    stats["categorical_summary"][col] = value_counts.to_dict()
+            
+            # Overall dataset statistics
+            stats["dataset_info"] = {
+                "total_rows": len(df),
+                "total_columns": len(df.columns),
+                "numeric_columns": len(numeric_cols),
+                "categorical_columns": len(categorical_cols),
+                "missing_values": df.isnull().sum().to_dict()
+            }
+            
+            return stats
+            
+        except Exception as e:
+            logger.warning(f"Error generating summary stats: {e}")
+            return {"error": "Could not generate summary statistics"}
     
     def _clean_sql_query(self, sql_query: str) -> str:
         """Clean and format SQL query."""
