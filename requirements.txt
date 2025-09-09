@@ -2,6 +2,7 @@
 langgraph>=0.2.0
 langchain-google-genai>=1.0.0
 langchain_core>=0.3.0
+langsmith>=0.1.0
 
 # Google AI (Gemini)
 google-generativeai>=0.3.0
@@ -29,11 +30,8 @@ plotly>=5.15.0
 # Environment and Configuration
 python-dotenv>=1.0.0
 pydantic>=2.0.0
-pyyaml>=6.0
 
-# Security and Validation
-ast-decompiler>=0.7.0
-restrictedpython>=6.0
+# Note: Security validation handled by built-in ast module
 
 # CLI and User Interface
 rich>=13.0.0
@@ -42,4 +40,3 @@ prompt_toolkit>=3.0.0
 
 # Testing and Development
 pytest>=7.4.0
-pytest-asyncio>=0.21.0
