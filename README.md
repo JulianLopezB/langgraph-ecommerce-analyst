@@ -21,8 +21,8 @@ An AI-powered data analysis agent that processes e-commerce data from Google Big
 
 1. **Clone the repository**:
    ```bash
-   git clone <repository-url>
-   cd takehome-3
+   git clone https://github.com/JulianLopezB/langgraph-ecommerce-analyst.git
+   cd langgraph-ecommerce-analyst
    ```
 
 2. **Install dependencies**:
