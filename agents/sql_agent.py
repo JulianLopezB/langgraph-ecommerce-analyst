@@ -1,18 +1,18 @@
 """AI agent for intelligent SQL query generation."""
-from typing import Dict, Any, List, Optional
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
+from typing import Dict, Any, List, Optional
 
-from agents.schema_agent import DataUnderstanding, ColumnAnalysis
-from agents.process_classifier import ProcessTypeResult
-from services.llm_service import GeminiService
-from logging_config import get_logger
-from tracing.langsmith_setup import tracer, trace_agent_operation
-
-# LangChain SQL validation imports
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
+
+from agents.process_classifier import ProcessTypeResult
+from agents.schema_agent import DataUnderstanding, ColumnAnalysis
+from logging_config import get_logger
+from services.llm_service import GeminiService
+from tracing.langsmith_setup import tracer, trace_agent_operation
+from utils.sql_utils import clean_sql_query
 
 logger = get_logger(__name__)
 
@@ -576,42 +576,16 @@ ANALYSIS PATTERNS:
             # Use LangChain validation chain
             validated_sql = self.sql_validation_chain.invoke({"query": sql_query})
             
-            # Clean up the response
-            validated_sql = validated_sql.strip()
-            if validated_sql.startswith("```sql"):
-                validated_sql = validated_sql[6:]
-            elif validated_sql.startswith("```"):
-                validated_sql = validated_sql[3:]
-            if validated_sql.endswith("```"):
-                validated_sql = validated_sql[:-3]
-            
-            # Basic cleanup
-            validated_sql = validated_sql.strip()
-            if validated_sql.endswith(';'):
-                validated_sql = validated_sql[:-1]
-            
-            # Ensure LIMIT clause
-            if 'LIMIT' not in validated_sql.upper():
-                validated_sql += ' LIMIT 10000'
+            # Clean up the response using shared utility
+            validated_sql = clean_sql_query(validated_sql, add_dataset_prefix=False, add_limit=True)
             
             logger.info("SQL query validated successfully with LangChain")
             return validated_sql
             
         except Exception as e:
             logger.warning(f"LangChain SQL validation failed: {e}, falling back to basic cleaning")
-            # Basic fallback cleaning only
-            validated_sql = sql_query.strip()
-            if validated_sql.startswith("```sql"):
-                validated_sql = validated_sql[6:]
-            elif validated_sql.startswith("```"):
-                validated_sql = validated_sql[3:]
-            if validated_sql.endswith("```"):
-                validated_sql = validated_sql[:-3]
-            validated_sql = validated_sql.strip()
-            if validated_sql.endswith(';'):
-                validated_sql = validated_sql[:-1]
-            if 'LIMIT' not in validated_sql.upper():
-                validated_sql += ' LIMIT 10000'
+            # Basic fallback cleaning using shared utility
+            validated_sql = clean_sql_query(sql_query, add_dataset_prefix=False, add_limit=True)
             return validated_sql
     
     def _create_fallback_sql(self, query: str, data_understanding: DataUnderstanding) -> SQLGenerationResult:

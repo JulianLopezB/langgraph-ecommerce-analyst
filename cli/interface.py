@@ -18,6 +18,7 @@ from prompt_toolkit.completion import WordCompleter
 from agent.graph import session_manager
 from config import config
 from logging_config import get_logger
+from utils.sql_utils import format_error_message
 
 logger = get_logger(__name__)
 
@@ -159,7 +160,7 @@ class DataAnalysisCLI:
         if error_context:
             self.console.print("⚠️  I ran into a small issue:")
             for error_type, error_msg in error_context.items():
-                friendly_msg = self._make_error_friendly(error_type, error_msg)
+                friendly_msg = format_error_message(error_type, error_msg)
                 self.console.print(f"   {friendly_msg}")
             self.console.print()
             self.console.print("Don't worry - I can try a different approach if you'd like!")
@@ -257,29 +258,6 @@ class DataAnalysisCLI:
         
         return text
     
-    def _make_error_friendly(self, error_type: str, error_msg: str) -> str:
-        """Convert technical error messages to friendly ones."""
-        friendly_messages = {
-            'sql_execution_error': "I had trouble running the database query",
-            'code_generation_error': "I had difficulty creating the analysis code",
-            'execution_error': "The analysis code ran into an issue",
-            'validation_error': "I found a problem with the generated code",
-            'understanding_error': "I had trouble understanding your question",
-            'sql_generation_error': "I couldn't create the right database query"
-        }
-        
-        friendly_msg = friendly_messages.get(error_type, "I encountered an unexpected issue")
-        
-        # Add specific details if they're helpful - ensure error_msg is a string
-        error_msg_str = str(error_msg) if error_msg else ""
-        if "timeout" in error_msg_str.lower():
-            friendly_msg += " (it took too long to complete)"
-        elif "memory" in error_msg_str.lower():
-            friendly_msg += " (it needed too much memory)"
-        elif "syntax" in error_msg_str.lower():
-            friendly_msg += " (there was a formatting issue)"
-        
-        return friendly_msg
     
     def _analyze_with_progress(self, user_query: str, progress, task):
         """Perform analysis with detailed progress updates showing agent actions."""

@@ -1,19 +1,21 @@
 """LangGraph workflow nodes for the data analysis agent."""
-from typing import Dict, Any
 import json
-import pandas as pd
 from datetime import datetime
+from typing import Dict, Any
+
+import pandas as pd
 
 from agent.state import AnalysisState, ProcessType, ConversationMessage, AnalysisLineage, GeneratedCode
-from services.llm_service import GeminiService
-from code_generation.validators import validator
-from execution.sandbox import secure_executor
-from bq_client import BigQueryRunner
-from logging_config import get_logger
-from tracing.langsmith_setup import tracer, trace_agent_operation
 from agents.process_classifier import process_classifier, ProcessTypeResult
 from agents.schema_agent import schema_agent
 from agents.sql_agent import sql_agent
+from bq_client import BigQueryRunner
+from code_generation.validators import validator
+from execution.sandbox import secure_executor
+from logging_config import get_logger
+from services.llm_service import GeminiService
+from tracing.langsmith_setup import tracer, trace_agent_operation
+from utils.sql_utils import clean_sql_query, format_error_message
 
 logger = get_logger(__name__)
 
@@ -653,26 +655,6 @@ class WorkflowNodes:
             logger.warning(f"Error generating summary stats: {e}")
             return {"error": "Could not generate summary statistics"}
     
-    def _clean_sql_query(self, sql_query: str) -> str:
-        """Clean and format SQL query."""
-        # Remove markdown formatting if present
-        sql_query = sql_query.strip()
-        if sql_query.startswith("```sql"):
-            sql_query = sql_query[6:]
-        if sql_query.startswith("```"):
-            sql_query = sql_query[3:]
-        if sql_query.endswith("```"):
-            sql_query = sql_query[:-3]
-        
-        # Add dataset prefix if missing
-        if "bigquery-public-data.thelook_ecommerce" not in sql_query:
-            # Simple replacement for common table references
-            for table in ["orders", "order_items", "products", "users"]:
-                sql_query = sql_query.replace(f" {table} ", f" `bigquery-public-data.thelook_ecommerce.{table}` ")
-                sql_query = sql_query.replace(f"FROM {table}", f"FROM `bigquery-public-data.thelook_ecommerce.{table}`")
-                sql_query = sql_query.replace(f"JOIN {table}", f"JOIN `bigquery-public-data.thelook_ecommerce.{table}`")
-        
-        return sql_query.strip()
 
 
 # Global nodes instance
