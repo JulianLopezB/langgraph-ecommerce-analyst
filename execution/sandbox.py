@@ -4,9 +4,7 @@ import time
 import traceback
 import resource
 import signal
-import multiprocessing as mp
 from typing import Any, Dict
-import logging
 from contextlib import redirect_stdout, redirect_stderr
 
 from config import config
@@ -18,11 +16,6 @@ logger = get_logger(__name__)
 
 class TimeoutException(Exception):
     """Exception raised when code execution times out."""
-    pass
-
-
-class MemoryLimitException(Exception):
-    """Exception raised when memory limit is exceeded."""
     pass
 
 
@@ -254,74 +247,5 @@ class SecureExecutor:
             return 0.0
 
 
-class ProcessSafeExecutor:
-    """Process-based executor for additional isolation."""
-    
-    def __init__(self):
-        """Initialize process-safe executor."""
-        self.max_execution_time = config.execution_limits.max_execution_time
-    
-    def execute_code_in_process(self, code: str, context: Dict[str, Any] = None) -> ExecutionResults:
-        """
-        Execute code in a separate process for additional isolation.
-        
-        Args:
-            code: Python code to execute
-            context: Context variables
-            
-        Returns:
-            ExecutionResults with execution details
-        """
-        # Create a queue to get results from the process
-        result_queue = mp.Queue()
-        
-        # Create and start the execution process
-        process = mp.Process(
-            target=self._execute_in_process,
-            args=(code, context, result_queue)
-        )
-        
-        start_time = time.time()
-        process.start()
-        process.join(timeout=self.max_execution_time)
-        
-        if process.is_alive():
-            # Process timed out
-            process.terminate()
-            process.join()
-            
-            return ExecutionResults(
-                status=ExecutionStatus.TIMEOUT,
-                execution_time=time.time() - start_time,
-                error_message=f"Process execution timed out after {self.max_execution_time} seconds"
-            )
-        
-        # Get results from the queue
-        try:
-            result = result_queue.get_nowait()
-            result.execution_time = time.time() - start_time
-            return result
-        except Exception:
-            return ExecutionResults(
-                status=ExecutionStatus.FAILED,
-                execution_time=time.time() - start_time,
-                error_message="Failed to retrieve execution results from process"
-            )
-    
-    def _execute_in_process(self, code: str, context: Dict[str, Any], result_queue: mp.Queue):
-        """Execute code within a separate process."""
-        try:
-            executor = SecureExecutor()
-            result = executor.execute_code(code, context)
-            result_queue.put(result)
-        except Exception as e:
-            error_result = ExecutionResults(
-                status=ExecutionStatus.FAILED,
-                error_message=f"Process execution error: {str(e)}"
-            )
-            result_queue.put(error_result)
-
-
-# Global executor instances
+# Global executor instance
 secure_executor = SecureExecutor()
-process_executor = ProcessSafeExecutor()
