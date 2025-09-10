@@ -81,7 +81,7 @@ class SchemaIntelligenceAgent:
                 prompt = self._create_schema_analysis_prompt(query, schema_info, process_type)
                 
                 # Get AI analysis
-                response = self.llm_service.generate_text(prompt, temperature=0.2)
+                response = self.llm_service.generate_text(prompt, temperature=0.1)
                 
                 # Parse the response
                 understanding = self._parse_schema_analysis(response.content, query)

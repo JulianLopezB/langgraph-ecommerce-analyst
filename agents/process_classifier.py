@@ -60,7 +60,7 @@ class ProcessTypeClassifier:
                 prompt = self._create_classification_prompt(query, schema_summary)
                 
                 # Get LLM response
-                response = self.llm_service.generate_text(prompt, temperature=0.3)
+                response = self.llm_service.generate_text(prompt, temperature=0.1)
                 
                 # Parse the response
                 result = self._parse_classification_response(response.content, query)

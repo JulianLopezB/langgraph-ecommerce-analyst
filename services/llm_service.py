@@ -50,7 +50,7 @@ class GeminiService:
         
         logger.info("Gemini service initialized")
     
-    def generate_text(self, prompt: str, temperature: float = 0.7, max_tokens: int = 2048) -> LLMResponse:
+    def generate_text(self, prompt: str, temperature: float = 0.3, max_tokens: int = 2048) -> LLMResponse:
         """Generate text response from Gemini."""
         start_time = time.time()
         
@@ -181,7 +181,7 @@ class GeminiService:
         - Avoid explaining basic operations like sorting or percentage calculations
         """
             
-            response = self.generate_text(prompt, temperature=0.4)
+            response = self.generate_text(prompt, temperature=0.2)
             python_code = response.content.strip()
             
             # Clean up any markdown formatting that might slip through
@@ -233,7 +233,7 @@ class GeminiService:
         - Avoid explaining basic mathematical operations or sorting methods
         """
             
-            response = self.generate_text(prompt, temperature=0.6)
+            response = self.generate_text(prompt, temperature=0.2)
             insights = response.content.strip()
             
             # Log insight generation metrics
