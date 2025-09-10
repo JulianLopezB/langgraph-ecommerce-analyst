@@ -6,83 +6,125 @@ The LangGraph Data Analysis Agent is an AI-powered system that transforms natura
 
 ## High-Level Architecture Diagram
 
+### System Overview
 ```mermaid
-graph TB
-    %% User Interface Layer
-    CLI[CLI Interface<br/>Rich Terminal UI] --> WF[LangGraph Workflow Engine]
+flowchart TD
+    %% User Input
+    USER(["👤 User Query: \"Analyze customer segments\""]) --> CLI
     
-    %% Configuration and Management
-    CFG[Configuration<br/>Management] --> WF
-    CFG --> SEC[Security<br/>Validator]
+    %% Core Workflow (Circles)
+    CLI(🎯 CLI Interface) --> WF_START(📋 Query Understanding)
+    WF_START --> WF_CLASSIFY(🔍 Process Classification)
+    WF_CLASSIFY --> WF_SCHEMA(📊 Schema Analysis)  
+    WF_SCHEMA --> WF_SQL(📝 SQL Generation)
+    WF_SQL --> WF_PYTHON(🐍 Python Generation)
+    WF_PYTHON --> WF_VALIDATE(✅ Code Validation)
+    WF_VALIDATE --> WF_EXECUTE(⚡ Secure Execution)
+    WF_EXECUTE --> WF_SYNTHESIZE(💡 Result Synthesis)
+    WF_SYNTHESIZE --> CLI
     
-    %% LangGraph Workflow Engine
-    subgraph WF [LangGraph Workflow Engine]
-        QU[Query<br/>Understanding] --> PC[Process<br/>Classifier]
-        PC --> SA[Schema<br/>Agent]
-        PC --> SG[SQL<br/>Generator]
-        SA --> SG
-        SG --> CG[Python Code<br/>Generator]
-        CG --> CV[Code<br/>Validator]
-        CV --> EX[Secure<br/>Executor]
-        EX --> SY[Result<br/>Synthesizer]
-    end
+    %% AI Agents (Squares)
+    WF_CLASSIFY --> PC["🧠 Process Classifier<br/><code>agents/process_classifier.py</code>"]
+    WF_SCHEMA --> SA["🗂️ Schema Agent<br/><code>agents/schema_agent.py</code>"]
+    WF_SQL --> SQL_AGENT["📝 SQL Agent<br/><code>agents/sql_agent.py</code>"]
     
-    %% AI Agents Layer
-    subgraph AGENTS [AI Agent Specialists]
-        PC
-        SA
-        SG
-    end
+    %% Services (Rectangles)
+    PC --> LLM[🚀 Gemini Service<br/><code>services/llm_service.py</code>]
+    SA --> LLM
+    SQL_AGENT --> LLM
+    WF_PYTHON --> LLM
+    WF_SYNTHESIZE --> LLM
     
-    %% Security Layer
-    subgraph SECURITY [Security & Validation]
-        SEC
-        CV
-        EX
-    end
+    WF_VALIDATE --> VAL[🛡️ Code Validator<br/><code>code_generation/validators.py</code>]
+    WF_EXECUTE --> EXECUTOR[🔐 Secure Executor<br/><code>execution/sandbox.py</code>]
     
-    %% External Services
-    subgraph EXT [External Services]
-        GEMINI[Google Gemini<br/>LLM API]
-        BQ[BigQuery<br/>Data Warehouse]
-        LS[LangSmith<br/>Tracing]
-    end
+    %% External APIs (Diamonds)  
+    LLM --> GEMINI{🤖 Google Gemini API}
+    WF_SQL --> BQ_CLIENT[🏗️ BigQuery Client<br/><code>bq_client.py</code>]
+    BQ_CLIENT --> BIGQUERY{🏢 BigQuery API}
     
-    %% Data Flow Connections
-    PC --> GEMINI
-    SA --> GEMINI
-    SG --> GEMINI
-    CG --> GEMINI
-    SY --> GEMINI
+    %% Data Annotations
+    WF_CLASSIFY -.->|ProcessType.PYTHON| WF_SCHEMA
+    WF_SCHEMA -.->|DataUnderstanding| WF_SQL
+    WF_SQL -.->|Optimized SQL| WF_PYTHON
+    WF_PYTHON -.->|Python Code| WF_VALIDATE
+    WF_VALIDATE -.->|Validated Code| WF_EXECUTE
+    WF_EXECUTE -.->|Analysis Results| WF_SYNTHESIZE
+    BIGQUERY -.->|Raw Dataset DataFrame| WF_PYTHON
     
-    SG --> BQ
-    EX --> BQ
+    %% Styling with different shapes
+    classDef workflow fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef agent fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px
+    classDef service fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+    classDef external fill:#fce4ec,stroke:#c2185b,stroke-width:3px
+    classDef user fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
     
-    WF --> LS
-    AGENTS --> LS
-    SECURITY --> LS
-    
-    %% Error Handling
-    EH[Error Handler<br/>Fallback Strategies] -.-> WF
-    EH -.-> CLI
-    
-    %% State Management
-    STATE[(LangGraph<br/>State Store)] --> WF
-    
-    %% Styling
-    classDef interface fill:#e1f5fe
-    classDef workflow fill:#f3e5f5
-    classDef agents fill:#e8f5e8
-    classDef security fill:#fff3e0
-    classDef external fill:#fce4ec
-    classDef storage fill:#f1f8e9
-    
-    class CLI interface
-    class WF,QU,CG,SY workflow
-    class AGENTS,PC,SA,SG agents
-    class SECURITY,SEC,CV,EX security
-    class EXT,GEMINI,BQ,LS external
-    class STATE storage
+    class USER,CLI user
+    class WF_START,WF_CLASSIFY,WF_SCHEMA,WF_SQL,WF_PYTHON,WF_VALIDATE,WF_EXECUTE,WF_SYNTHESIZE workflow
+    class PC,SA,SQL_AGENT agent
+    class LLM,VAL,EXECUTOR,BQ_CLIENT service
+    class GEMINI,BIGQUERY external
+```
+
+### Component Responsibility Matrix
+```mermaid
+mindmap
+  root((🏗️ System Components))
+    (🖥️ User Interface)
+      CLI Interface
+        Session Management
+        Rich Formatting
+        Progress Tracking
+        Error Display
+    (🔄 Workflow Engine)
+      LangGraph Orchestration
+        State Management
+        Flow Control
+        Error Recovery
+        Node Coordination
+    (🤖 AI Agents)
+      Process Classifier
+        Intent Recognition
+        Complexity Assessment
+        Path Determination
+      Schema Agent
+        Table Mapping
+        Relationship Discovery
+        Semantic Analysis
+      SQL Agent
+        Query Generation
+        Optimization
+        Validation
+    (🔌 Services)
+      Gemini Service
+        Prompt Engineering
+        Response Parsing
+        Rate Limiting
+      BigQuery Client
+        Query Execution
+        Schema Discovery
+        Result Processing
+      Code Validator
+        Security Scanning
+        Syntax Checking
+        Performance Analysis
+      Secure Executor
+        Sandboxing
+        Resource Limiting
+        Output Sanitization
+    (☁️ External)
+      Google Gemini
+        Natural Language Processing
+        Code Generation
+        Reasoning
+      BigQuery API
+        Data Storage
+        Query Processing
+        Analytics Engine
+      LangSmith
+        Tracing
+        Monitoring
+        Performance Metrics
 ```
 
 ## Core Components
