@@ -66,66 +66,6 @@ flowchart TD
     class GEMINI,BIGQUERY external
 ```
 
-### Component Responsibility Matrix
-```mermaid
-mindmap
-  root((🏗️ System Components))
-    (🖥️ User Interface)
-      CLI Interface
-        Session Management
-        Rich Formatting
-        Progress Tracking
-        Error Display
-    (🔄 Workflow Engine)
-      LangGraph Orchestration
-        State Management
-        Flow Control
-        Error Recovery
-        Node Coordination
-    (🤖 AI Agents)
-      Process Classifier
-        Intent Recognition
-        Complexity Assessment
-        Path Determination
-      Schema Agent
-        Table Mapping
-        Relationship Discovery
-        Semantic Analysis
-      SQL Agent
-        Query Generation
-        Optimization
-        Validation
-    (🔌 Services)
-      Gemini Service
-        Prompt Engineering
-        Response Parsing
-        Rate Limiting
-      BigQuery Client
-        Query Execution
-        Schema Discovery
-        Result Processing
-      Code Validator
-        Security Scanning
-        Syntax Checking
-        Performance Analysis
-      Secure Executor
-        Sandboxing
-        Resource Limiting
-        Output Sanitization
-    (☁️ External)
-      Google Gemini
-        Natural Language Processing
-        Code Generation
-        Reasoning
-      BigQuery API
-        Data Storage
-        Query Processing
-        Analytics Engine
-      LangSmith
-        Tracing
-        Monitoring
-        Performance Metrics
-```
 
 ## Core Components
 
@@ -342,20 +282,3 @@ This multi-layered approach ensures 95%+ success rate for user queries while mai
 **Log Levels**: DEBUG, INFO, WARN, ERROR with appropriate filtering
 **Security Logging**: Authentication, authorization, and sensitive operations
 **Performance Logging**: Query execution times and resource usage
-
-## Deployment Architecture
-
-### Environment Configuration
-
-**Development**: Local execution with sample datasets
-**Staging**: Cloud deployment with production-like data  
-**Production**: Full-scale deployment with monitoring and alerting
-
-### Configuration Management
-
-**Environment Variables**: Secure credential and configuration management
-**Feature Flags**: Dynamic system behavior control
-**Resource Limits**: Environment-specific performance tuning
-**Monitoring Thresholds**: Adaptive alerting based on usage patterns
-
-This architecture provides a robust, secure, and scalable foundation for AI-powered data analysis while maintaining flexibility for future enhancements and integrations.
