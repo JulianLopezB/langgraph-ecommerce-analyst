@@ -6,17 +6,13 @@ from datetime import datetime
 import click
 from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
-from rich.markdown import Markdown
-from rich.text import Text
-from rich.prompt import Prompt, Confirm
+from rich.prompt import Confirm
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from prompt_toolkit import prompt
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.completion import WordCompleter
 
 from workflow.graph import session_manager
-from config import config
 from logging_config import get_logger
 from utils.sql_utils import format_error_message
 
@@ -48,7 +44,7 @@ class DataAnalysisCLI:
         try:
             # Start new session
             self.session_id = session_manager.start_session()
-            self.console.print(f"✓ Ready to analyze your data!")
+            self.console.print("✓ Ready to analyze your data!")
             
             # Show help message
             self._show_help()
