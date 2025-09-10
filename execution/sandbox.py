@@ -6,7 +6,6 @@ import resource
 import signal
 import multiprocessing as mp
 from typing import Any, Dict
-import logging
 from contextlib import redirect_stdout, redirect_stderr
 
 from config import config

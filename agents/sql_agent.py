@@ -1,7 +1,7 @@
 """AI agent for intelligent SQL query generation."""
 import json
 from dataclasses import dataclass
-from typing import Dict, Any, List, Optional
+from typing import List
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
@@ -107,7 +107,6 @@ class SQLGenerationAgent:
         """Create the AI prompt for SQL generation."""
         
         # Format data understanding for prompt
-        tables_info = self._format_tables_for_prompt(data_understanding.relevant_tables)
         metrics_info = self._format_metrics_for_prompt(data_understanding.target_metrics)
         dimensions_info = self._format_dimensions_for_prompt(data_understanding.grouping_dimensions)
         schema_details = self._format_detailed_schema(data_understanding)

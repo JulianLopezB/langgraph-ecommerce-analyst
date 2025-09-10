@@ -2,7 +2,7 @@
 import os
 import time
 from dataclasses import dataclass
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 
 import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
@@ -113,7 +113,6 @@ class GeminiService:
             original_query = analysis_context.get("original_query", "")
             process_data = analysis_context.get("process_data", {})
             data_characteristics = analysis_context.get("data_characteristics", {})
-            sql_explanation = analysis_context.get("sql_explanation", "")
             query_intent = analysis_context.get("query_intent", "")
             
             prompt = f"""
@@ -259,9 +258,6 @@ class GeminiService:
         
         # Remove any leading/trailing whitespace
         code = code.strip()
-        
-        # Fix common string literal issues
-        import re
         
         # Fix unterminated string literals by removing incomplete lines
         lines = code.split('\n')
