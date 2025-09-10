@@ -7,15 +7,15 @@ import resource
 import signal
 import multiprocessing as mp
 from typing import Any, Dict, Optional, Tuple
-import logging
 import pandas as pd
 import numpy as np
 from contextlib import redirect_stdout, redirect_stderr
 
 from config import config
 from workflow.state import ExecutionStatus, ExecutionResults
+from logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class TimeoutException(Exception):

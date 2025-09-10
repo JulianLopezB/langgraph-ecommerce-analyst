@@ -1,7 +1,5 @@
 """Main entry point for the LangGraph Data Analysis Agent."""
-import os
 import sys
-import logging
 import warnings
 from pathlib import Path
 
@@ -15,6 +13,10 @@ sys.path.insert(0, str(project_root))
 
 from cli.interface import main as cli_main
 from config import config
+from logging_config import get_logger
+
+
+logger = get_logger(__name__)
 
 
 def setup_logging(debug: bool = False) -> None:
@@ -74,7 +76,7 @@ def main() -> None:
         print("\\n👋 Goodbye!")
         sys.exit(0)
     except Exception as e:
-        logging.error(f"Fatal error: {str(e)}")
+        logger.error(f"Fatal error: {str(e)}")
         print(f"❌ Fatal error: {str(e)}")
         sys.exit(1)
 
