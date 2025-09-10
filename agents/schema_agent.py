@@ -199,20 +199,19 @@ Think semantically about data relationships and user intent, not just column nam
         
         formatted_parts = []
         for table_name, schema in schema_info.items():
-            if isinstance(schema, dict) and 'columns' in schema:
-                columns_info = []
-                for col in schema['columns'][:15]:  # Limit to avoid token limits
-                    if isinstance(col, dict):
-                        col_name = col.get('name', 'unknown')
-                        col_type = col.get('type', 'unknown')
-                        columns_info.append(f"  - {col_name} ({col_type})")
-                    else:
-                        columns_info.append(f"  - {str(col)}")
-                
-                formatted_parts.append(f"Table: {table_name}")
-                formatted_parts.extend(columns_info)
-                formatted_parts.append("")  # Empty line between tables
-        
+            columns_info = []
+            for col in schema['columns'][:15]:  # Limit to avoid token limits
+                if isinstance(col, dict):
+                    col_name = col.get('name', 'unknown')
+                    col_type = col.get('type', 'unknown')
+                    columns_info.append(f"  - {col_name} ({col_type})")
+                else:
+                    columns_info.append(f"  - {str(col)}")
+
+            formatted_parts.append(f"Table: {table_name}")
+            formatted_parts.extend(columns_info)
+            formatted_parts.append("")  # Empty line between tables
+
         return "\\n".join(formatted_parts)
     
     def _parse_schema_analysis(self, response_content: str, original_query: str) -> DataUnderstanding:

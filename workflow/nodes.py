@@ -1,5 +1,4 @@
 """LangGraph workflow nodes for the data analysis agent."""
-import json
 from datetime import datetime
 from typing import Dict, Any
 
@@ -602,22 +601,27 @@ class WorkflowNodes:
         return state
     
     def _get_schema_info(self) -> Dict[str, Any]:
-        """Get schema information for core tables."""
+        """Get schema information for core tables.
+
+        Returns:
+            Dictionary mapping table names to schema metadata with a ``columns`` key
+            containing a list of column definitions.
+        """
         try:
-            schema_info = {}
-            
+            schema_info: Dict[str, Any] = {}
+
             # Always include core tables
             core_tables = ["orders", "order_items", "products", "users"]
-            
+
             for table in core_tables:
                 try:
-                    schema = self.bq_client.get_table_schema(table)
-                    schema_info[table] = schema
+                    columns = self.bq_client.get_table_schema(table)
+                    schema_info[table] = {"columns": columns}
                 except Exception as e:
                     logger.warning(f"Could not get schema for {table}: {e}")
-            
+
             return schema_info
-            
+
         except Exception as e:
             logger.error(f"Error getting schema info: {e}")
             return {}

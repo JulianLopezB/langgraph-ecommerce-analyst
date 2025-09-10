@@ -1,5 +1,10 @@
 """Shared SQL utility functions."""
 
+from config import config
+
+DATASET_ID = config.api_configurations.dataset_id
+MAX_RESULTS = config.api_configurations.max_query_results
+
 
 def clean_sql_query(sql_query: str, add_dataset_prefix: bool = True, add_limit: bool = True) -> str:
     """
@@ -28,15 +33,15 @@ def clean_sql_query(sql_query: str, add_dataset_prefix: bool = True, add_limit: 
         sql_query = sql_query[:-1]
     
     # Add dataset prefix if missing and requested
-    if add_dataset_prefix and "bigquery-public-data.thelook_ecommerce" not in sql_query:
+    if add_dataset_prefix and DATASET_ID not in sql_query:
         for table in ["orders", "order_items", "products", "users"]:
-            sql_query = sql_query.replace(f" {table} ", f" `bigquery-public-data.thelook_ecommerce.{table}` ")
-            sql_query = sql_query.replace(f"FROM {table}", f"FROM `bigquery-public-data.thelook_ecommerce.{table}`")
-            sql_query = sql_query.replace(f"JOIN {table}", f"JOIN `bigquery-public-data.thelook_ecommerce.{table}`")
+            sql_query = sql_query.replace(f" {table} ", f" `{DATASET_ID}.{table}` ")
+            sql_query = sql_query.replace(f"FROM {table}", f"FROM `{DATASET_ID}.{table}`")
+            sql_query = sql_query.replace(f"JOIN {table}", f"JOIN `{DATASET_ID}.{table}`")
     
     # Ensure LIMIT clause for performance if requested
     if add_limit and "LIMIT" not in sql_query.upper():
-        sql_query += " LIMIT 10000"
+        sql_query += f" LIMIT {MAX_RESULTS}"
     
     return sql_query.strip()
 

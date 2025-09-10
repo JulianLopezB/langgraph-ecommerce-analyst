@@ -7,6 +7,9 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+# Centralized constants
+DEFAULT_DATASET_ID = "bigquery-public-data.thelook_ecommerce"
+
 
 class ExecutionLimits(BaseModel):
     """Configuration for code execution limits."""
@@ -41,7 +44,7 @@ class APIConfig(BaseModel):
     """API configuration settings."""
     gemini_api_key: Optional[str] = Field(default=None, description="Google Gemini API key")
     bigquery_project_id: Optional[str] = Field(default=None, description="BigQuery project ID")
-    dataset_id: str = Field(default="bigquery-public-data.thelook_ecommerce", description="BigQuery dataset ID")
+    dataset_id: str = Field(default=DEFAULT_DATASET_ID, description="BigQuery dataset ID")
     max_query_results: int = Field(default=10000, description="Maximum query result rows")
     query_timeout: int = Field(default=300, description="Query timeout in seconds")
     
@@ -70,6 +73,7 @@ class SystemConfig(BaseModel):
     security_settings: SecurityConfig = Field(default_factory=SecurityConfig)
     api_configurations: APIConfig = Field(default_factory=APIConfig)
     logging_settings: LoggingConfig = Field(default_factory=LoggingConfig)
+    environment: str = Field(default=os.getenv("APP_ENV", "development"), description="Deployment environment")
     
     def __init__(self, **kwargs):
         # Load API configurations from environment variables
@@ -79,6 +83,7 @@ class SystemConfig(BaseModel):
         
         api_config.setdefault('gemini_api_key', os.getenv('GEMINI_API_KEY'))
         api_config.setdefault('bigquery_project_id', os.getenv('GOOGLE_CLOUD_PROJECT'))
+        api_config.setdefault('dataset_id', os.getenv('BQ_DATASET_ID', DEFAULT_DATASET_ID))
         api_config.setdefault('langsmith_api_key', os.getenv('LANGCHAIN_API_KEY'))
         api_config.setdefault('langsmith_project', os.getenv('LANGCHAIN_PROJECT', 'data-analysis-agent'))
         api_config.setdefault('enable_tracing', os.getenv('LANGCHAIN_TRACING_V2', 'true').lower() == 'true')
@@ -88,4 +93,26 @@ class SystemConfig(BaseModel):
 
 
 # Global configuration instance
-config = SystemConfig()
+class DevelopmentConfig(SystemConfig):
+    """Configuration for development environment."""
+
+
+class ProductionConfig(SystemConfig):
+    """Configuration for production environment."""
+
+
+_CONFIG_MAP = {
+    "development": DevelopmentConfig,
+    "production": ProductionConfig,
+}
+
+
+def get_config(environment: Optional[str] = None) -> SystemConfig:
+    """Load configuration based on the deployment environment."""
+    env = (environment or os.getenv("APP_ENV", "development")).lower()
+    config_cls = _CONFIG_MAP.get(env, DevelopmentConfig)
+    return config_cls()
+
+
+# Global configuration instance
+config = get_config()

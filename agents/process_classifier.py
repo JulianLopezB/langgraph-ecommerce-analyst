@@ -91,15 +91,12 @@ class ProcessTypeClassifier:
         """Prepare a concise schema summary for the LLM."""
         if not schema_info:
             return "No schema information available"
-        
+
         summary_parts = []
         for table_name, schema in schema_info.items():
-            if isinstance(schema, dict) and 'columns' in schema:
-                columns = [col.get('name', str(col)) for col in schema['columns'][:10]]  # Limit columns
-                summary_parts.append(f"- {table_name}: {', '.join(columns)}")
-            else:
-                summary_parts.append(f"- {table_name}: schema details available")
-        
+            columns = [col.get('name', str(col)) for col in schema['columns'][:10]]  # Limit columns
+            summary_parts.append(f"- {table_name}: {', '.join(columns)}")
+
         return "\\n".join(summary_parts)
     
     def _create_classification_prompt(self, query: str, schema_summary: str) -> str:
