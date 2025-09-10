@@ -1,14 +1,12 @@
 """Secure code execution environment with sandboxing."""
-import sys
 import io
 import time
 import traceback
 import resource
 import signal
 import multiprocessing as mp
-from typing import Any, Dict, Optional, Tuple
-import pandas as pd
-import numpy as np
+from typing import Any, Dict
+import logging
 from contextlib import redirect_stdout, redirect_stderr
 
 from config import config
@@ -185,7 +183,6 @@ class SecureExecutor:
             from scipy.stats import pearsonr, spearmanr, normaltest, shapiro
             import statsmodels.api as sm
             from prophet import Prophet
-            import datetime
             from datetime import datetime, timedelta
             import math
             import statistics
@@ -304,7 +301,7 @@ class ProcessSafeExecutor:
             result = result_queue.get_nowait()
             result.execution_time = time.time() - start_time
             return result
-        except:
+        except Exception:
             return ExecutionResults(
                 status=ExecutionStatus.FAILED,
                 execution_time=time.time() - start_time,
