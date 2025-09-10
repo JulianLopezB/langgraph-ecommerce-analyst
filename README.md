@@ -41,6 +41,9 @@ An AI-powered data analysis agent that processes e-commerce data from Google Big
    
    # BigQuery Configuration (optional)
    BQ_DATASET_ID=bigquery-public-data.thelook_ecommerce
+
+   # Deployment Environment (optional: development|production)
+   APP_ENV=development
    
    # LangSmith Tracing (optional - for debugging)
    LANGSMITH_API_KEY=your_langsmith_api_key_here

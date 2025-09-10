@@ -5,6 +5,7 @@ from google.cloud import bigquery
 
 from logging_config import get_logger
 from tracing.langsmith_setup import tracer
+from config import config
 
 logger = get_logger(__name__)
 
@@ -12,17 +13,17 @@ logger = get_logger(__name__)
 class BigQueryRunner:
     """A lean BigQuery client for executing SQL queries and returning DataFrame results."""
     
-    def __init__(self, project_id: Optional[str] = None, dataset_id: Optional[str] = "bigquery-public-data.thelook_ecommerce") -> None:
+    def __init__(self, project_id: Optional[str] = None, dataset_id: Optional[str] = None) -> None:
         """Initialize BigQuery client.
         
         Args:
             project_id: Google Cloud project ID. If None, uses default credentials.
-            dataset_id: BigQuery dataset ID. If None, uses default dataset.
+            dataset_id: BigQuery dataset ID. If None, uses value from global config.
         """
         logger.info("Initializing BigQuery client")
         try:
             self.client = bigquery.Client(project=project_id)
-            self.dataset_id = dataset_id
+            self.dataset_id = dataset_id or config.api_configurations.dataset_id
             logger.info(f"BigQuery client initialized for dataset: {self.dataset_id}")
         except Exception as e:
             logger.error(f"Failed to initialize BigQuery client: {str(e)}")

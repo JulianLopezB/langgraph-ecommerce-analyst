@@ -13,6 +13,10 @@ from logging_config import get_logger
 from services.llm_service import GeminiService
 from tracing.langsmith_setup import tracer, trace_agent_operation
 from utils.sql_utils import clean_sql_query
+from config import config
+
+DATASET_ID = config.api_configurations.dataset_id
+MAX_RESULTS = config.api_configurations.max_query_results
 
 logger = get_logger(__name__)
 
@@ -130,12 +134,12 @@ GROUPING DIMENSIONS:
 JOIN STRATEGY:
 {'; '.join(data_understanding.join_strategy)}
 
-SQL GENERATION REQUIREMENTS:
+   SQL GENERATION REQUIREMENTS:
 
-1. **CRITICAL - Table Usage**: 
+1. **CRITICAL - Table Usage**:
    - ONLY use the 4 existing tables shown in the schema above
    - Do NOT create new tables, CTEs with made-up names, or reference non-existent tables
-   - Every table reference must include full path: `bigquery-public-data.thelook_ecommerce.TABLE_NAME`
+   - Every table reference must include full path: `{DATASET_ID}.TABLE_NAME`
 
 2. **Performance**: Optimize for cost and speed
    - Use appropriate WHERE clauses for filtering
@@ -230,12 +234,12 @@ Think step by step:
 
 EXAMPLE for "highest revenue products":
 ```sql
-SELECT 
+SELECT
     p.name as product_name,
     p.brand,
     SUM(oi.sale_price) as total_revenue
-FROM `bigquery-public-data.thelook_ecommerce.order_items` oi
-JOIN `bigquery-public-data.thelook_ecommerce.products` p 
+FROM `{DATASET_ID}.order_items` oi
+JOIN `{DATASET_ID}.products` p
     ON oi.product_id = p.id
 GROUP BY p.name, p.brand
 ORDER BY total_revenue DESC
@@ -244,13 +248,13 @@ LIMIT 10
 
 EXAMPLE for "RFM analysis":
 ```sql
-SELECT 
+SELECT
     o.user_id,
     DATE_DIFF(CURRENT_DATE(), DATE(MAX(o.created_at)), DAY) as recency_days,
     COUNT(DISTINCT o.order_id) as frequency_orders,
     SUM(oi.sale_price) as monetary_value
-FROM `bigquery-public-data.thelook_ecommerce.orders` o
-JOIN `bigquery-public-data.thelook_ecommerce.order_items` oi 
+FROM `{DATASET_ID}.orders` o
+JOIN `{DATASET_ID}.order_items` oi
     ON o.order_id = oi.order_id
 GROUP BY o.user_id
 LIMIT 1000
@@ -258,13 +262,13 @@ LIMIT 1000
 
 EXAMPLE for "Forecast sales" (HISTORICAL data for Python forecasting):
 ```sql
-SELECT 
+SELECT
     DATE_TRUNC(DATE(o.created_at), MONTH) as month,
     SUM(oi.sale_price) as monthly_revenue,
     COUNT(DISTINCT o.order_id) as monthly_orders,
     COUNT(DISTINCT o.user_id) as unique_customers
-FROM `bigquery-public-data.thelook_ecommerce.orders` o
-JOIN `bigquery-public-data.thelook_ecommerce.order_items` oi 
+FROM `{DATASET_ID}.orders` o
+JOIN `{DATASET_ID}.order_items` oi
     ON o.order_id = oi.order_id
 WHERE o.created_at >= DATE_SUB(CURRENT_DATE(), INTERVAL 18 MONTH)
 GROUP BY DATE_TRUNC(DATE(o.created_at), MONTH)
@@ -279,13 +283,13 @@ CRITICAL FOR FORECASTING:
 
 EXAMPLE for "quarterly sales trends":
 ```sql
-SELECT 
+SELECT
     EXTRACT(YEAR FROM DATE(o.created_at)) as year,
     EXTRACT(QUARTER FROM DATE(o.created_at)) as quarter,
     SUM(oi.sale_price) as quarterly_revenue,
     COUNT(DISTINCT o.order_id) as quarterly_orders
-FROM `bigquery-public-data.thelook_ecommerce.orders` o
-JOIN `bigquery-public-data.thelook_ecommerce.order_items` oi 
+FROM `{DATASET_ID}.orders` o
+JOIN `{DATASET_ID}.order_items` oi
     ON o.order_id = oi.order_id
 WHERE o.created_at >= DATE_SUB(CURRENT_DATE(), INTERVAL 2 YEAR)
 GROUP BY EXTRACT(YEAR FROM DATE(o.created_at)), EXTRACT(QUARTER FROM DATE(o.created_at))
@@ -295,21 +299,21 @@ LIMIT 1000
 
 EXAMPLE for "Customer churn analysis":
 ```sql
-SELECT 
+SELECT
     u.id as user_id,
     u.first_name,
     u.last_name,
     DATE_DIFF(CURRENT_DATE(), DATE(MAX(o.created_at)), DAY) as days_since_last_order,
     COUNT(DISTINCT o.order_id) as total_orders,
     SUM(oi.sale_price) as total_spent,
-    CASE 
+    CASE
         WHEN DATE_DIFF(CURRENT_DATE(), DATE(MAX(o.created_at)), DAY) > 180 THEN 'Churned'
         WHEN DATE_DIFF(CURRENT_DATE(), DATE(MAX(o.created_at)), DAY) > 90 THEN 'At Risk'
         ELSE 'Active'
     END as churn_status
-FROM `bigquery-public-data.thelook_ecommerce.users` u
-LEFT JOIN `bigquery-public-data.thelook_ecommerce.orders` o ON u.id = o.user_id
-LEFT JOIN `bigquery-public-data.thelook_ecommerce.order_items` oi ON o.order_id = oi.order_id
+FROM `{DATASET_ID}.users` u
+LEFT JOIN `{DATASET_ID}.orders` o ON u.id = o.user_id
+LEFT JOIN `{DATASET_ID}.order_items` oi ON o.order_id = oi.order_id
 GROUP BY u.id, u.first_name, u.last_name
 ORDER BY days_since_last_order DESC
 LIMIT 1000
@@ -357,30 +361,30 @@ Generate a BigQuery SQL query that directly answers the user's question.
         # This method will show the actual BigQuery schema structure
         # to help the AI generate accurate column references
         
-        schema_template = """
+        schema_template = f"""
 CRITICAL: Use ONLY these 4 existing tables. Do NOT create or reference any other tables:
 
-1. `bigquery-public-data.thelook_ecommerce.products` (alias: p)
+1. `{DATASET_ID}.products` (alias: p)
    - id (INTEGER) - Product ID  
    - name (STRING) - Product name
    - brand (STRING) - Product brand
    - category (STRING) - Product category
    - retail_price (FLOAT) - Product retail price
 
-2. `bigquery-public-data.thelook_ecommerce.order_items` (alias: oi)  
+2. `{DATASET_ID}.order_items` (alias: oi)
    - id (INTEGER) - Order item ID
    - order_id (INTEGER) - Order ID
    - product_id (INTEGER) - Links to products.id
    - sale_price (FLOAT) - ACTUAL REVENUE AMOUNT (use this for revenue calculations)
    - inventory_item_id (INTEGER) - Inventory item
 
-3. `bigquery-public-data.thelook_ecommerce.orders` (alias: o)
+3. `{DATASET_ID}.orders` (alias: o)
    - order_id (INTEGER) - Order ID
    - user_id (INTEGER) - Customer ID  
    - status (STRING) - Order status
    - created_at (TIMESTAMP) - Order date (use DATE(o.created_at) for date operations)
 
-4. `bigquery-public-data.thelook_ecommerce.users` (alias: u)
+4. `{DATASET_ID}.users` (alias: u)
    - id (INTEGER) - User ID
    - first_name (STRING) - User first name
    - last_name (STRING) - User last name
@@ -389,7 +393,7 @@ CRITICAL: Use ONLY these 4 existing tables. Do NOT create or reference any other
 
 CRITICAL CONSTRAINTS:
 - ONLY use tables 1-4 above. Do NOT create tables like "ChurnAnalysis", "CustomerMetrics", etc.
-- ALL table references must include full dataset path: `bigquery-public-data.thelook_ecommerce.TABLE_NAME`
+- ALL table references must include full dataset path: `{DATASET_ID}.TABLE_NAME`
 - Use WITH clauses for complex calculations, but still reference the 4 base tables only
 - For churn analysis: calculate customer metrics using existing tables, don't create new ones
 
@@ -462,7 +466,7 @@ ANALYSIS PATTERNS:
             return ' '.join(sql_lines)
         
         # Fallback: return a basic query structure
-        return "SELECT * FROM `bigquery-public-data.thelook_ecommerce.orders` LIMIT 100"
+        return f"SELECT * FROM `{DATASET_ID}.orders` LIMIT 100"
     
     def _optimize_and_validate(self, sql_result: SQLGenerationResult, 
                               data_understanding: DataUnderstanding) -> SQLGenerationResult:
@@ -471,26 +475,26 @@ ANALYSIS PATTERNS:
         optimizations = list(sql_result.optimization_applied)
         
         # Ensure dataset prefix
-        if "bigquery-public-data.thelook_ecommerce" not in sql_query:
+        if DATASET_ID not in sql_query:
             # Add dataset prefix to common tables
             for table_name in ["orders", "order_items", "products", "users"]:
                 sql_query = sql_query.replace(
-                    f" {table_name} ", 
-                    f" `bigquery-public-data.thelook_ecommerce.{table_name}` "
+                    f" {table_name} ",
+                    f" `{DATASET_ID}.{table_name}` "
                 )
                 sql_query = sql_query.replace(
                     f"FROM {table_name}",
-                    f"FROM `bigquery-public-data.thelook_ecommerce.{table_name}`"
+                    f"FROM `{DATASET_ID}.{table_name}`"
                 )
                 sql_query = sql_query.replace(
                     f"JOIN {table_name}",
-                    f"JOIN `bigquery-public-data.thelook_ecommerce.{table_name}`"
+                    f"JOIN `{DATASET_ID}.{table_name}`"
                 )
             optimizations.append("dataset_prefix_added")
         
         # Ensure LIMIT clause for performance
         if "LIMIT" not in sql_query.upper():
-            sql_query += " LIMIT 10000"
+            sql_query += f" LIMIT {MAX_RESULTS}"
             optimizations.append("limit_added")
         
         # Clean up formatting
@@ -513,8 +517,6 @@ ANALYSIS PATTERNS:
         """Initialize LangChain SQL validation chain."""
         try:
             # Initialize Gemini for LangChain validation
-            from config import config
-            
             self.langchain_llm = ChatGoogleGenerativeAI(
                 model="gemini-1.5-flash",
                 google_api_key=config.api_configurations.gemini_api_key,
@@ -522,7 +524,7 @@ ANALYSIS PATTERNS:
             )
             
             # Define the BigQuery-specific validation prompt
-            validation_system_prompt = """Double check the BigQuery SQL query for common mistakes, including:
+            validation_system_prompt = f"""Double check the BigQuery SQL query for common mistakes, including:
             - Using NOT IN with NULL values
             - Using UNION when UNION ALL should have been used  
             - Using BETWEEN for exclusive ranges
@@ -535,7 +537,7 @@ ANALYSIS PATTERNS:
             - Do NOT include aggregate functions (SUM, COUNT, AVG) in GROUP BY clause
             - Table alias consistency between SELECT and GROUP BY
             - BigQuery date functions: DATE(timestamp_column), DATE_DIFF syntax
-            - Complete table paths: `bigquery-public-data.thelook_ecommerce.TABLE_NAME`
+            - Complete table paths: `{DATASET_ID}.TABLE_NAME`
             
             CRITICAL: If selecting individual columns with aggregates, ensure every non-aggregate column appears in GROUP BY.
             
@@ -599,7 +601,7 @@ ANALYSIS PATTERNS:
         
         fallback_sql = f"""
         SELECT *
-        FROM `bigquery-public-data.thelook_ecommerce.{primary_table}`
+        FROM `{DATASET_ID}.{primary_table}`
         LIMIT 100
         """
         
