@@ -6,7 +6,16 @@ import uuid
 from langgraph.graph import StateGraph, END
 
 from workflow.state import AnalysisState, create_initial_state, ConversationMessage
-from workflow.nodes import workflow_nodes
+from workflow.nodes import (
+    understand_query,
+    generate_sql,
+    execute_sql,
+    generate_python_code,
+    validate_code,
+    execute_code,
+    synthesize_results,
+    handle_error,
+)
 from logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -26,14 +35,14 @@ class DataAnalysisAgent:
         workflow = StateGraph(AnalysisState)
         
         # Add nodes
-        workflow.add_node("understand_query", workflow_nodes.understand_query)
-        workflow.add_node("generate_sql", workflow_nodes.generate_sql)
-        workflow.add_node("execute_sql", workflow_nodes.execute_sql)
-        workflow.add_node("generate_python_code", workflow_nodes.generate_python_code)
-        workflow.add_node("validate_code", workflow_nodes.validate_code)
-        workflow.add_node("execute_code", workflow_nodes.execute_code)
-        workflow.add_node("synthesize_results", workflow_nodes.synthesize_results)
-        workflow.add_node("handle_error", workflow_nodes.handle_error)
+        workflow.add_node("understand_query", understand_query)
+        workflow.add_node("generate_sql", generate_sql)
+        workflow.add_node("execute_sql", execute_sql)
+        workflow.add_node("generate_python_code", generate_python_code)
+        workflow.add_node("validate_code", validate_code)
+        workflow.add_node("execute_code", execute_code)
+        workflow.add_node("synthesize_results", synthesize_results)
+        workflow.add_node("handle_error", handle_error)
         
         # Set entry point
         workflow.set_entry_point("understand_query")
