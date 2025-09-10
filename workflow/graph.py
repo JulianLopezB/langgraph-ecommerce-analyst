@@ -4,7 +4,6 @@ from datetime import datetime
 import uuid
 
 from langgraph.graph import StateGraph, END
-from langchain_core.runnables import RunnableLambda
 
 from workflow.state import AnalysisState, create_initial_state, ConversationMessage
 from workflow.nodes import workflow_nodes
