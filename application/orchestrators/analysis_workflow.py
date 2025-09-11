@@ -41,14 +41,18 @@ class AnalysisWorkflow:
         schema_info = self._schema_analysis.analyze()
 
         # Determine processing strategy
-        process_type = self._process_classification.classify(query, schema_info)
+        process_type_raw = self._process_classification.classify(query, schema_info)
+        process_type = next(
+            (ptype for ptype in ProcessType if ptype.value in str(process_type_raw).lower()),
+            ProcessType.SQL,
+        )
 
         # Always generate SQL and retrieve data
         sql = self._sql_generation.generate(query, schema_info)
         data = self._execution.run_query(sql)
 
         # For complex analysis, generate and execute Python code
-        if str(process_type).lower() == ProcessType.PYTHON.value:
+        if process_type is ProcessType.PYTHON:
             code_prompt = f"Analyze the following data for query: {query}"
             code = self._python_generation.generate(code_prompt)
 
