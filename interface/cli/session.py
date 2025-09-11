@@ -8,16 +8,17 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from application.controllers import AnalysisController
 
 
-# Single controller instance used by the CLI
-_controller = AnalysisController()
-
-
-def start_session() -> str:
+def start_session(controller: AnalysisController) -> str:
     """Start a new analysis session."""
-    return _controller.start_session()
+    return controller.start_session()
 
 
-def analyze_query_with_progress(console, user_query: str, session_id: str) -> Dict[str, Any]:
+def analyze_query_with_progress(
+    console,
+    user_query: str,
+    session_id: str,
+    controller: AnalysisController,
+) -> Dict[str, Any]:
     """Perform analysis with detailed progress updates."""
     progress_steps = [
         "🧠 Understanding your question...",
@@ -55,12 +56,12 @@ def analyze_query_with_progress(console, user_query: str, session_id: str) -> Di
         monitor_thread = threading.Thread(target=progress_monitor, daemon=True)
         monitor_thread.start()
 
-        results = _controller.analyze_query(user_query, session_id)
+        results = controller.analyze_query(user_query, session_id)
         progress.update(task, description="✅ Analysis complete!")
         time.sleep(0.3)
         return results
 
 
-def get_session_history(session_id: str) -> Dict[str, Any]:
+def get_session_history(session_id: str, controller: AnalysisController) -> Dict[str, Any]:
     """Retrieve session conversation history."""
-    return _controller.get_session_history(session_id)
+    return controller.get_session_history(session_id)

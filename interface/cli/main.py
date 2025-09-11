@@ -5,6 +5,7 @@ import click
 
 from infrastructure.logging import get_logger
 
+from app_factory import create_analysis_controller
 from .interface import DataAnalysisCLI
 
 logger = get_logger(__name__)
@@ -16,7 +17,8 @@ logger = get_logger(__name__)
 def main(debug: bool, session_id: Optional[str]) -> None:
     """AI-Powered E-commerce Data Analysis Agent CLI."""
     logger.info(f"Starting CLI interface (debug={debug})")
-    cli = DataAnalysisCLI()
+    controller = create_analysis_controller()
+    cli = DataAnalysisCLI(controller)
 
     if session_id:
         cli.session_id = session_id

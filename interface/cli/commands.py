@@ -27,7 +27,7 @@ def handle_command(cli, user_input: str) -> bool:
         if not cli.session_id:
             cli.console.print("No active session yet. Start by asking me a question!")
             return True
-        history = session.get_session_history(cli.session_id)
+        history = session.get_session_history(cli.session_id, cli.controller)
         if "error" in history:
             cli.console.print(f"I couldn't find that session: {history['error']}")
             return True
@@ -36,7 +36,7 @@ def handle_command(cli, user_input: str) -> bool:
         return True
     if command == 'new':
         if Confirm.ask("Start a new session?"):
-            cli.session_id = session.start_session()
+            cli.session_id = session.start_session(cli.controller)
             cli.console.print("✓ Started a fresh session! What would you like to analyze?")
         return True
 
@@ -47,7 +47,12 @@ def handle_command(cli, user_input: str) -> bool:
 def process_query(cli, user_query: str) -> None:
     """Process a user analysis query."""
     try:
-        results = session.analyze_query_with_progress(cli.console, user_query, cli.session_id)
+        results = session.analyze_query_with_progress(
+            cli.console,
+            user_query,
+            cli.session_id,
+            cli.controller,
+        )
         display.display_results(cli.console, results)
     except Exception as e:
         cli.console.print(f"I had trouble analyzing that question: {str(e)}")
