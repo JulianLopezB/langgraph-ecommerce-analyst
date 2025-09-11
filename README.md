@@ -102,6 +102,7 @@ The system follows a modular, layered architecture:
 - **Code Generator**: Generates Python analysis code dynamically
 - **Secure Executor**: Safely executes code with resource limits
 - **Session Manager**: Handles conversation history and context
+- **AnalysisController**: Application layer facade reused by interfaces
 
 ### Data Flow
 
@@ -166,6 +167,14 @@ security_settings:
 - `clear` - Clear screen
 - `new` - Start new session
 - `exit/quit` - Exit application
+
+## 🔌 API Integration
+
+Future REST or GraphQL endpoints can import the `AnalysisController`
+from `application.controllers`. The controller exposes the same
+`start_session`, `analyze_query`, and `get_session_history` methods used by
+the CLI, enabling web services to reuse the `AnalysisWorkflow` without
+duplicating business logic.
 
 ## 🔍 Debugging
 

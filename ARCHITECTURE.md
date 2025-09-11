@@ -127,13 +127,17 @@ flowchart TD
 - Resource limits (CPU, memory, time)
 - Output sanitization and monitoring
 
-### 5. User Interface (`cli/`)
+### 5. User Interface (`interface/cli/`)
 
 **Interactive CLI Interface**:
 - Natural language query input
-- Real-time progress tracking  
+- Real-time progress tracking
 - Rich formatting and visualization
 - Session management and history
+
+The CLI communicates with the `AnalysisController` (`application/controllers/analysis_controller.py`),
+allowing future API endpoints to reuse the same controller to trigger the `AnalysisWorkflow` without
+duplicating orchestration logic.
 
 ## Technical Architecture Decisions
 
