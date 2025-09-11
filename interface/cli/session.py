@@ -5,12 +5,16 @@ import threading
 
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from workflow.graph import session_manager
+from application.controllers import AnalysisController
+
+
+# Single controller instance used by the CLI
+_controller = AnalysisController()
 
 
 def start_session() -> str:
     """Start a new analysis session."""
-    return session_manager.start_session()
+    return _controller.start_session()
 
 
 def analyze_query_with_progress(console, user_query: str, session_id: str) -> Dict[str, Any]:
@@ -51,7 +55,7 @@ def analyze_query_with_progress(console, user_query: str, session_id: str) -> Di
         monitor_thread = threading.Thread(target=progress_monitor, daemon=True)
         monitor_thread.start()
 
-        results = session_manager.analyze_query(user_query, session_id)
+        results = _controller.analyze_query(user_query, session_id)
         progress.update(task, description="✅ Analysis complete!")
         time.sleep(0.3)
         return results
@@ -59,4 +63,4 @@ def analyze_query_with_progress(console, user_query: str, session_id: str) -> Di
 
 def get_session_history(session_id: str) -> Dict[str, Any]:
     """Retrieve session conversation history."""
-    return session_manager.get_session_history(session_id)
+    return _controller.get_session_history(session_id)
