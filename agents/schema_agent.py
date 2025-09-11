@@ -3,7 +3,7 @@ from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 import json
 
-from workflow.state import ProcessType
+from domain.entities import ProcessType
 from services.llm_service import GeminiService
 from logging_config import get_logger
 from tracing.langsmith_setup import tracer, trace_agent_operation

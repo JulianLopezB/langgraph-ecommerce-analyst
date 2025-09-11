@@ -2,7 +2,8 @@
 from datetime import datetime
 
 from logging_config import get_logger
-from workflow.state import AnalysisState, ConversationMessage
+from workflow.state import AnalysisState
+from domain.entities import ConversationMessage
 
 logger = get_logger(__name__)
 

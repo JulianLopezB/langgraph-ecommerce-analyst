@@ -5,7 +5,8 @@ import uuid
 
 from langgraph.graph import StateGraph, END
 
-from workflow.state import AnalysisState, create_initial_state, ConversationMessage
+from workflow.state import AnalysisState, create_initial_state
+from domain.entities import ConversationMessage
 from workflow.nodes import (
     understand_query,
     generate_sql,

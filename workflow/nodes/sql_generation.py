@@ -5,7 +5,8 @@ from agents.process_classifier import ProcessTypeResult
 from agents.schema_agent import schema_agent
 from agents.sql_agent import sql_agent
 from logging_config import get_logger
-from workflow.state import AnalysisState, ConversationMessage
+from workflow.state import AnalysisState
+from domain.entities import ConversationMessage
 
 logger = get_logger(__name__)
 
