@@ -17,9 +17,7 @@ from logging_config import get_logger
 from services.llm_service import GeminiService
 from tracing.langsmith_setup import tracer, trace_agent_operation
 from config import config
-
-DATASET_ID = config.api_configurations.dataset_id
-MAX_RESULTS = config.api_configurations.max_query_results
+from utils.config_helpers import DATASET_ID, MAX_RESULTS
 
 logger = get_logger(__name__)
 

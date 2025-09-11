@@ -1,10 +1,6 @@
 """Shared SQL utility functions."""
-
 import re
-from config import config
-
-DATASET_ID = config.api_configurations.dataset_id
-MAX_RESULTS = config.api_configurations.max_query_results
+from utils.config_helpers import DATASET_ID, MAX_RESULTS
 
 
 def clean_sql_query(sql_query: str, add_dataset_prefix: bool = True, add_limit: bool = True) -> str:
