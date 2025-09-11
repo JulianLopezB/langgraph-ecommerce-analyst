@@ -1,6 +1,6 @@
 """AI-driven process type classification agent."""
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, Any, List
 
 from workflow.state import ProcessType
@@ -19,11 +19,7 @@ class ProcessTypeResult:
     reasoning: str
     requires_aggregation: bool = False
     complexity_level: str = "medium"  # low, medium, high
-    suggested_tables: List[str] = None
-    
-    def __post_init__(self):
-        if self.suggested_tables is None:
-            self.suggested_tables = []
+    suggested_tables: List[str] = field(default_factory=list)
 
 
 class ProcessTypeClassifier:

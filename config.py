@@ -40,8 +40,8 @@ class SecurityConfig(BaseModel):
     )
 
 
-class APIConfig(BaseModel):
-    """API configuration settings."""
+class AppConfig(BaseModel):
+    """Application configuration settings."""
     gemini_api_key: Optional[str] = Field(default=None, description="Google Gemini API key")
     bigquery_project_id: Optional[str] = Field(default=None, description="BigQuery project ID")
     dataset_id: str = Field(default=DEFAULT_DATASET_ID, description="BigQuery dataset ID")
@@ -71,7 +71,7 @@ class SystemConfig(BaseModel):
     """Main system configuration."""
     execution_limits: ExecutionLimits = Field(default_factory=ExecutionLimits)
     security_settings: SecurityConfig = Field(default_factory=SecurityConfig)
-    api_configurations: APIConfig = Field(default_factory=APIConfig)
+    api_configurations: AppConfig = Field(default_factory=AppConfig)
     logging_settings: LoggingConfig = Field(default_factory=LoggingConfig)
     environment: str = Field(default=os.getenv("APP_ENV", "development"), description="Deployment environment")
     
@@ -88,7 +88,7 @@ class SystemConfig(BaseModel):
         api_config.setdefault('langsmith_project', os.getenv('LANGCHAIN_PROJECT', 'data-analysis-agent'))
         api_config.setdefault('enable_tracing', os.getenv('LANGCHAIN_TRACING_V2', 'true').lower() == 'true')
         
-        kwargs['api_configurations'] = APIConfig(**api_config)
+        kwargs['api_configurations'] = AppConfig(**api_config)
         super().__init__(**kwargs)
 
 

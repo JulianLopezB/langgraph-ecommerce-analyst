@@ -4,18 +4,18 @@ from datetime import datetime
 import uuid
 
 from langgraph.graph import StateGraph, END
-from langchain_core.runnables import RunnableLambda
 
 from workflow.state import AnalysisState, create_initial_state, ConversationMessage
-from workflow.nodes import WorkflowNodes
-from agents.process_classifier import ProcessTypeClassifier
-from agents.schema_agent import SchemaIntelligenceAgent
-from agents.sql_agent import SQLGenerationAgent
-from bq_client import BigQueryRunner
-from code_generation.validators import CodeValidator
-from execution.sandbox import SecureExecutor
-from services.llm_service import GeminiService
-from tracing.langsmith_setup import LangSmithTracer
+from workflow.nodes import (
+    understand_query,
+    generate_sql,
+    execute_sql,
+    generate_python_code,
+    validate_code,
+    execute_code,
+    synthesize_results,
+    handle_error,
+)
 from logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -71,14 +71,14 @@ class DataAnalysisAgent:
         workflow = StateGraph(AnalysisState)
         
         # Add nodes
-        workflow.add_node("understand_query", self.workflow_nodes.understand_query)
-        workflow.add_node("generate_sql", self.workflow_nodes.generate_sql)
-        workflow.add_node("execute_sql", self.workflow_nodes.execute_sql)
-        workflow.add_node("generate_python_code", self.workflow_nodes.generate_python_code)
-        workflow.add_node("validate_code", self.workflow_nodes.validate_code)
-        workflow.add_node("execute_code", self.workflow_nodes.execute_code)
-        workflow.add_node("synthesize_results", self.workflow_nodes.synthesize_results)
-        workflow.add_node("handle_error", self.workflow_nodes.handle_error)
+        workflow.add_node("understand_query", understand_query)
+        workflow.add_node("generate_sql", generate_sql)
+        workflow.add_node("execute_sql", execute_sql)
+        workflow.add_node("generate_python_code", generate_python_code)
+        workflow.add_node("validate_code", validate_code)
+        workflow.add_node("execute_code", execute_code)
+        workflow.add_node("synthesize_results", synthesize_results)
+        workflow.add_node("handle_error", handle_error)
         
         # Set entry point
         workflow.set_entry_point("understand_query")
