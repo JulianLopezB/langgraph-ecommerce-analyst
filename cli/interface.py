@@ -307,21 +307,6 @@ class DataAnalysisCLI:
             progress.update(task, description="❌ Something went wrong...")
             raise e
 
-class AgentProgressTracker:
-    """Helper class to track agent progress updates."""
-    
-    def __init__(self, progress, task):
-        self.progress = progress
-        self.task = task
-        self.should_stop = False
-    
-    def update(self, description):
-        if not self.should_stop:
-            self.progress.update(self.task, description=description)
-    
-    def stop(self):
-        self.should_stop = True
-
 
 @click.command()
 @click.option('--debug', is_flag=True, help='Enable debug logging')
