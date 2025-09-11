@@ -13,7 +13,7 @@ from typing import Any, Dict
 from contextlib import redirect_stdout, redirect_stderr
 
 from config import config
-from workflow.state import ExecutionStatus, ExecutionResults
+from domain.entities import ExecutionStatus, ExecutionResults
 from logging_config import get_logger
 
 logger = get_logger(__name__)
