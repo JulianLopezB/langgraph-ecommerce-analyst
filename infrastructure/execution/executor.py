@@ -1,6 +1,6 @@
-"""Secure code execution environment with sandboxing.
+"""Secure execution environment implementation.
 
-Dynamic imports are disabled; the `__import__` builtin is intentionally
+Dynamic imports are disabled; the ``__import__`` builtin is intentionally
 omitted from the execution environment. Any additional libraries must be
 preloaded into the sandbox before execution.
 """
@@ -12,9 +12,10 @@ import signal
 from typing import Any, Dict
 from contextlib import redirect_stdout, redirect_stderr
 
-from config import config
+from infrastructure.config import config
 from domain.entities import ExecutionStatus, ExecutionResults
-from logging_config import get_logger
+from infrastructure.logging import get_logger
+from .base import CodeExecutor
 
 logger = get_logger(__name__)
 
@@ -29,7 +30,7 @@ def timeout_handler(signum, frame):
     raise TimeoutException("Code execution timed out")
 
 
-class SecureExecutor:
+class SecureExecutor(CodeExecutor):
     """Secure Python code executor with resource limits and sandboxing."""
     
     def __init__(self):
@@ -253,5 +254,3 @@ class SecureExecutor:
             return 0.0
 
 
-# Global executor instance
-secure_executor = SecureExecutor()

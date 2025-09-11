@@ -8,7 +8,7 @@ from prompt_toolkit import prompt
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.completion import WordCompleter
 
-from logging_config import get_logger
+from infrastructure.logging import get_logger
 
 from . import commands, session
 from .display import show_help

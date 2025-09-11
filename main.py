@@ -12,8 +12,8 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 from cli.main import main as cli_main  # noqa: E402
-from config import config  # noqa: E402
-from logging_config import get_logger
+from infrastructure.config import config  # noqa: E402
+from infrastructure.logging import get_logger
 
 
 logger = get_logger(__name__)
@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 
 def setup_logging(debug: bool = False) -> None:
     """Set up logging configuration."""
-    from logging_config import setup_logging as setup_centralized_logging
+    from infrastructure.logging import setup_logging as setup_centralized_logging
     
     # Use centralized logging configuration
     log_file = config.logging_settings.file_path or "logs/agent.log"

@@ -4,8 +4,8 @@ from dataclasses import dataclass, field
 from typing import Dict, Any, List
 
 from domain.entities import ProcessType
-from logging_config import get_logger
-from services.llm_service import GeminiService
+from infrastructure.logging import get_logger
+from infrastructure.llm import llm_client
 from tracing.langsmith_setup import tracer, trace_agent_operation
 
 logger = get_logger(__name__)
@@ -27,7 +27,7 @@ class ProcessTypeClassifier:
     
     def __init__(self):
         """Initialize the process classifier."""
-        self.llm_service = GeminiService()
+        self.llm_service = llm_client
         logger.info("ProcessTypeClassifier initialized")
     
     def classify(self, query: str, schema_info: Dict[str, Any]) -> ProcessTypeResult:

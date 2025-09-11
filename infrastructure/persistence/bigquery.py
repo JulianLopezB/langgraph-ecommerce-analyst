@@ -3,15 +3,16 @@ from typing import Optional, List, Dict, Any
 import pandas as pd
 from google.cloud import bigquery
 
-from logging_config import get_logger
+from infrastructure.logging import get_logger
 from tracing.langsmith_setup import tracer
-from config import config
+from infrastructure.config import config
+from .base import DataRepository
 
 logger = get_logger(__name__)
 
 
-class BigQueryRunner:
-    """A lean BigQuery client for executing SQL queries and returning DataFrame results."""
+class BigQueryRepository(DataRepository):
+    """BigQuery implementation of :class:`DataRepository`."""
     
     def __init__(self, project_id: Optional[str] = None, dataset_id: Optional[str] = None) -> None:
         """Initialize BigQuery client.

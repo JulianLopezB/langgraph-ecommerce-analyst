@@ -7,8 +7,8 @@ from functools import wraps
 from langsmith import Client, traceable
 from langsmith.run_helpers import tracing_context
 
-from config import config
-from logging_config import get_logger
+from infrastructure.config import config
+from infrastructure.logging import get_logger
 
 logger = get_logger(__name__)
 

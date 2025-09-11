@@ -29,18 +29,18 @@ flowchart TD
     WF_SQL --> SQL_AGENT["📝 SQL Agent<br/><code>agents/sql_agent.py</code>"]
     
     %% Services (Rectangles)
-    PC --> LLM[🚀 Gemini Service<br/><code>services/llm_service.py</code>]
+    PC --> LLM[🚀 LLM Client<br/><code>infrastructure/llm/gemini.py</code>]
     SA --> LLM
     SQL_AGENT --> LLM
     WF_PYTHON --> LLM
     WF_SYNTHESIZE --> LLM
     
-    WF_VALIDATE --> VAL[🛡️ Code Validator<br/><code>code_generation/validators.py</code>]
-    WF_EXECUTE --> EXECUTOR[🔐 Secure Executor<br/><code>execution/sandbox.py</code>]
+    WF_VALIDATE --> VAL[🛡️ Code Validator<br/><code>infrastructure/execution/validator.py</code>]
+    WF_EXECUTE --> EXECUTOR[🔐 Secure Executor<br/><code>infrastructure/execution/executor.py</code>]
     
     %% External APIs (Diamonds)  
     LLM --> GEMINI{🤖 Google Gemini API}
-    WF_SQL --> BQ_CLIENT[🏗️ BigQuery Client<br/><code>bq_client.py</code>]
+    WF_SQL --> BQ_CLIENT[🏗️ BigQuery Repository<br/><code>infrastructure/persistence/bigquery.py</code>]
     BQ_CLIENT --> BIGQUERY{🏢 BigQuery API}
     
     %% Data Annotations
@@ -105,24 +105,24 @@ flowchart TD
 
 ### 3. External Service Integration
 
-#### BigQuery Client (`bq_client.py`)
+#### BigQuery Repository (`infrastructure/persistence/bigquery.py`)
 - Handles Google Cloud BigQuery connections
 - Executes SQL queries with timeout protection
 - Manages schema discovery and metadata
 
-#### LLM Service (`services/llm_service.py`)
+#### LLM Client (`infrastructure/llm/gemini.py`)
 - Google Gemini API integration
 - Handles prompt engineering and response parsing
 - Manages rate limiting and error handling
 
 ### 4. Security & Execution Layer
 
-#### Code Validator (`code_generation/validators.py`)
+#### Code Validator (`infrastructure/execution/validator.py`)
 - Multi-stage security validation
 - Syntax and semantic checking
 - Performance analysis and warnings
 
-#### Secure Executor (`execution/sandbox.py`)
+#### Secure Executor (`infrastructure/execution/executor.py`)
 - Sandboxed Python code execution
 - Resource limits (CPU, memory, time)
 - Output sanitization and monitoring

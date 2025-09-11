@@ -3,11 +3,11 @@
 from typing import TYPE_CHECKING
 
 from agents.schema_agent import DataUnderstanding
-from config import config
+from infrastructure.config import config
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
-from logging_config import get_logger
+from infrastructure.logging import get_logger
 from utils.sql_utils import clean_sql_query
 
 DATASET_ID = config.api_configurations.dataset_id
