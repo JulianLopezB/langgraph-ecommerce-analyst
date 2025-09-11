@@ -1,9 +1,6 @@
 """Shared SQL utility functions."""
 
-from config import config
-
-DATASET_ID = config.api_configurations.dataset_id
-MAX_RESULTS = config.api_configurations.max_query_results
+from utils.config_helpers import DATASET_ID, MAX_RESULTS
 
 
 def clean_sql_query(sql_query: str, add_dataset_prefix: bool = True, add_limit: bool = True) -> str:
@@ -76,5 +73,5 @@ def format_error_message(error_type: str, error_msg: str) -> str:
         friendly_msg += " (it needed too much memory)"
     elif "syntax" in error_msg_str.lower():
         friendly_msg += " (there was a formatting issue)"
-    
+
     return friendly_msg
