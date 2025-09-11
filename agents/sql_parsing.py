@@ -4,10 +4,7 @@ import json
 from typing import TYPE_CHECKING
 
 from agents.schema_agent import DataUnderstanding
-from infrastructure.config import config
 from infrastructure.logging import get_logger
-
-DATASET_ID = config.api_configurations.dataset_id
 
 logger = get_logger(__name__)
 
@@ -17,7 +14,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def parse_sql_response(
-    response_content: str, data_understanding: DataUnderstanding
+    response_content: str, data_understanding: DataUnderstanding, dataset_id: str
 ):
     """Parse the AI response into an SQLGenerationResult."""
     from agents.sql_agent import SQLGenerationResult
@@ -45,7 +42,7 @@ def parse_sql_response(
         logger.warning(f"Failed to parse SQL response: {e}")
         logger.debug(f"Raw response: {response_content}")
 
-        sql_query = _extract_sql_from_text(response_content)
+        sql_query = _extract_sql_from_text(response_content, dataset_id)
 
         return SQLGenerationResult(
             sql_query=sql_query,
@@ -58,7 +55,7 @@ def parse_sql_response(
         )
 
 
-def _extract_sql_from_text(text: str) -> str:
+def _extract_sql_from_text(text: str, dataset_id: str) -> str:
     """Extract SQL query from plain text response."""
     lines = text.split("\n")
     sql_lines = []
@@ -78,5 +75,5 @@ def _extract_sql_from_text(text: str) -> str:
     if sql_lines:
         return " ".join(sql_lines)
 
-    return f"SELECT * FROM `{DATASET_ID}.orders` LIMIT 100"
+    return f"SELECT * FROM `{dataset_id}.orders` LIMIT 100"
 

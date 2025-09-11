@@ -92,7 +92,6 @@ class SystemConfig(BaseModel):
         super().__init__(**kwargs)
 
 
-# Global configuration instance
 class DevelopmentConfig(SystemConfig):
     """Configuration for development environment."""
 
@@ -112,7 +111,3 @@ def get_config(environment: Optional[str] = None) -> SystemConfig:
     env = (environment or os.getenv("APP_ENV", "development")).lower()
     config_cls = _CONFIG_MAP.get(env, DevelopmentConfig)
     return config_cls()
-
-
-# Global configuration instance
-config = get_config()

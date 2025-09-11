@@ -1,16 +1,12 @@
 """Application factory for creating fully wired controllers and services."""
 from __future__ import annotations
 
-from infrastructure.config import get_config, config as _config
+from infrastructure.config import get_config
 
 
 def _create_config():
-    """Create and bind system configuration."""
-    config = get_config()
-    # Ensure global config used across modules is our instance
-    import infrastructure.config as config_module
-    config_module.config = config
-    return config
+    """Create system configuration instance."""
+    return get_config()
 
 
 def _bind_services(config):
@@ -28,8 +24,8 @@ def _bind_services(config):
         project_id=config.api_configurations.bigquery_project_id,
         dataset_id=config.api_configurations.dataset_id,
     )
-    secure_executor = SecureExecutor()
-    validator = CodeValidator()
+    secure_executor = SecureExecutor(config.execution_limits)
+    validator = CodeValidator(config.security_settings)
 
     llm_module.llm_client = llm_client
     persistence_module.data_repository = data_repository

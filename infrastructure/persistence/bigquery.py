@@ -1,11 +1,11 @@
 from typing import Optional, List, Dict, Any
 
+import os
 import pandas as pd
 from google.cloud import bigquery
 
 from infrastructure.logging import get_logger
 from tracing.langsmith_setup import tracer
-from infrastructure.config import config
 from .base import DataRepository
 
 logger = get_logger(__name__)
@@ -16,15 +16,17 @@ class BigQueryRepository(DataRepository):
     
     def __init__(self, project_id: Optional[str] = None, dataset_id: Optional[str] = None) -> None:
         """Initialize BigQuery client.
-        
+
         Args:
             project_id: Google Cloud project ID. If None, uses default credentials.
-            dataset_id: BigQuery dataset ID. If None, uses value from global config.
+            dataset_id: BigQuery dataset ID. If None, uses ``BQ_DATASET_ID`` env var.
         """
         logger.info("Initializing BigQuery client")
         try:
             self.client = bigquery.Client(project=project_id)
-            self.dataset_id = dataset_id or config.api_configurations.dataset_id
+            self.dataset_id = dataset_id or os.getenv(
+                "BQ_DATASET_ID", "bigquery-public-data.thelook_ecommerce"
+            )
             logger.info(f"BigQuery client initialized for dataset: {self.dataset_id}")
         except Exception as e:
             logger.error(f"Failed to initialize BigQuery client: {str(e)}")
