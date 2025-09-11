@@ -6,7 +6,8 @@ import uuid
 from langgraph.graph import StateGraph, END
 
 from workflow.state import AnalysisState, create_initial_state
-from domain.entities import ConversationMessage
+from domain.entities import ConversationMessage, AnalysisSession
+from domain.services import SessionStore
 from workflow.nodes import (
     understand_query,
     generate_sql,
@@ -17,6 +18,7 @@ from workflow.nodes import (
     synthesize_results,
     handle_error,
 )
+from infrastructure.persistence.in_memory_session_store import InMemorySessionStore
 from infrastructure.logging import get_logger
 
 logger = get_logger(__name__)
@@ -219,72 +221,94 @@ class DataAnalysisAgent:
 
 class SessionManager:
     """Manages analysis sessions and conversation history."""
-    
-    def __init__(self):
+
+    def __init__(
+        self,
+        session_store: SessionStore | None = None,
+        agent: DataAnalysisAgent | None = None,
+    ) -> None:
         """Initialize session manager."""
-        self.sessions: Dict[str, Dict[str, Any]] = {}
-        self.agent = DataAnalysisAgent()
-    
-    def start_session(self, session_id: str = None) -> str:
+        self.session_store = session_store or InMemorySessionStore()
+        self.agent = agent or DataAnalysisAgent()
+
+    def start_session(self, session_id: str | None = None) -> str:
         """Start a new analysis session."""
         if session_id is None:
             session_id = str(uuid.uuid4())
-        
-        self.sessions[session_id] = {
-            "created_at": datetime.now(),
-            "conversation_history": [],
-            "analysis_count": 0
-        }
-        
+
+        session = AnalysisSession(session_id=session_id, created_at=datetime.now())
+        self.session_store.save_session(session)
+
         logger.info(f"Started new session: {session_id}")
         return session_id
-    
-    def analyze_query(self, user_query: str, session_id: str = None) -> Dict[str, Any]:
+
+    def analyze_query(self, user_query: str, session_id: str | None = None) -> Dict[str, Any]:
         """Analyze a query within a session context."""
-        if session_id is None or session_id not in self.sessions:
+        if session_id is None or self.session_store.get_session(session_id) is None:
             session_id = self.start_session(session_id)
-        
+
         # Perform analysis
         results = self.agent.analyze(user_query, session_id)
-        
-        # Update session
-        self.sessions[session_id]["conversation_history"].extend(
-            results.get("conversation_history", [])
-        )
-        self.sessions[session_id]["analysis_count"] += 1
-        
+
+        session = self.session_store.get_session(session_id)
+        if session:
+            for msg in results.get("conversation_history", []):
+                try:
+                    timestamp = datetime.fromisoformat(msg.get("timestamp", ""))
+                except Exception:
+                    timestamp = datetime.now()
+                session.conversation_history.append(
+                    ConversationMessage(
+                        timestamp=timestamp,
+                        role=msg.get("role", ""),
+                        content=msg.get("content", ""),
+                        message_type=msg.get("type", "text"),
+                    )
+                )
+            session.analysis_count += 1
+            self.session_store.save_session(session)
+
         return results
-    
+
     def get_session_history(self, session_id: str) -> Dict[str, Any]:
         """Get conversation history for a session."""
-        if session_id not in self.sessions:
+        session = self.session_store.get_session(session_id)
+        if session is None:
             return {"error": "Session not found"}
-        
+
         return {
-            "session_id": session_id,
-            "created_at": self.sessions[session_id]["created_at"].isoformat(),
-            "conversation_history": self.sessions[session_id]["conversation_history"],
-            "analysis_count": self.sessions[session_id]["analysis_count"]
+            "session_id": session.session_id,
+            "created_at": session.created_at.isoformat(),
+            "conversation_history": [
+                {
+                    "timestamp": msg.timestamp.isoformat(),
+                    "role": msg.role,
+                    "content": msg.content,
+                    "type": msg.message_type,
+                }
+                for msg in session.conversation_history
+            ],
+            "analysis_count": session.analysis_count,
         }
-    
+
     def list_sessions(self) -> list[Dict[str, Any]]:
         """List all active sessions."""
+        sessions = self.session_store.list_sessions()
         return [
             {
-                "session_id": sid,
-                "created_at": session_data["created_at"].isoformat(),
-                "analysis_count": session_data["analysis_count"]
+                "session_id": s.session_id,
+                "created_at": s.created_at.isoformat(),
+                "analysis_count": s.analysis_count,
             }
-            for sid, session_data in self.sessions.items()
+            for s in sessions
         ]
-    
+
     def delete_session(self, session_id: str) -> bool:
         """Delete a session."""
-        if session_id in self.sessions:
-            del self.sessions[session_id]
+        deleted = self.session_store.delete_session(session_id)
+        if deleted:
             logger.info(f"Deleted session: {session_id}")
-            return True
-        return False
+        return deleted
 
 
 # Global instances

@@ -60,3 +60,12 @@ class ConversationMessage:
     role: str  # 'user' or 'assistant'
     content: str
     message_type: str = "text"  # 'text', 'query', 'result', 'error'
+
+
+@dataclass
+class AnalysisSession:
+    """Represents an analysis conversation session."""
+    session_id: str
+    created_at: datetime
+    conversation_history: List[ConversationMessage] = field(default_factory=list)
+    analysis_count: int = 0
