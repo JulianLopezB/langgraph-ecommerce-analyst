@@ -1,4 +1,9 @@
-"""Secure code execution environment with sandboxing."""
+"""Secure code execution environment with sandboxing.
+
+Dynamic imports are disabled; the `__import__` builtin is intentionally
+omitted from the execution environment. Any additional libraries must be
+preloaded into the sandbox before execution.
+"""
 import io
 import time
 import traceback
@@ -150,9 +155,10 @@ class SecureExecutor:
         safe_builtins = {
             'len', 'str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set',
             'min', 'max', 'sum', 'abs', 'round', 'sorted', 'enumerate', 'zip',
-            'range', 'print', 'type', 'isinstance', 'any', 'all', '__import__',
+            'range', 'print', 'type', 'isinstance', 'any', 'all',
             'Exception', 'ValueError', 'TypeError', 'KeyError', 'IndexError', 'AttributeError'
         }
+        # Note: `__import__` is intentionally excluded to block runtime imports.
         
         safe_globals = {
             '__builtins__': {name: __builtins__[name] for name in safe_builtins if name in __builtins__}
