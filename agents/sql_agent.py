@@ -13,11 +13,10 @@ from agents.sql_validation import (
     optimize_and_validate,
     validate_sql_with_langchain,
 )
+import os
 from infrastructure.logging import get_logger
 from infrastructure.llm import llm_client
 from tracing.langsmith_setup import tracer, trace_agent_operation
-from infrastructure.config import config
-from utils.config_helpers import DATASET_ID, MAX_RESULTS
 
 logger = get_logger(__name__)
 
@@ -36,13 +35,17 @@ class SQLGenerationResult:
 
 class SQLGenerationAgent:
     """AI agent that generates intelligent SQL queries based on data understanding."""
-    
-    def __init__(self):
+
+    def __init__(self, dataset_id: str, max_results: int, google_api_key: str | None = None):
         """Initialize the SQL generation agent."""
         self.llm_service = llm_client
+        self.dataset_id = dataset_id
+        self.max_results = max_results
 
         # Initialize LangChain SQL validator
-        self.sql_validation_chain = init_sql_validator()
+        self.sql_validation_chain = init_sql_validator(
+            google_api_key, dataset_id
+        )
 
         logger.info("SQLGenerationAgent initialized")
     
@@ -70,7 +73,7 @@ class SQLGenerationAgent:
             try:
                 # Create SQL generation prompt
                 prompt = create_sql_generation_prompt(
-                    query, data_understanding, process_result
+                    query, data_understanding, process_result, self.dataset_id
                 )
                 
                 # Generate SQL using AI
@@ -78,15 +81,20 @@ class SQLGenerationAgent:
                 
                 # Parse the response
                 sql_result = parse_sql_response(
-                    response.content, data_understanding
+                    response.content, data_understanding, self.dataset_id
                 )
                 
                 # Apply final optimizations and validation
-                sql_result = optimize_and_validate(sql_result, data_understanding)
+                sql_result = optimize_and_validate(
+                    sql_result, data_understanding, self.dataset_id, self.max_results
+                )
                 
                 # Use LangChain SQL validation for robust query checking
                 sql_result.sql_query = validate_sql_with_langchain(
-                    self.sql_validation_chain, sql_result.sql_query
+                    self.sql_validation_chain,
+                    sql_result.sql_query,
+                    self.dataset_id,
+                    self.max_results,
                 )
                 
                 # Log metrics
@@ -107,8 +115,16 @@ class SQLGenerationAgent:
             except Exception as e:
                 logger.error(f"Error generating SQL: {e}")
                 # Return fallback SQL
-                return create_fallback_sql(query, data_understanding)
+                return create_fallback_sql(query, data_understanding, self.dataset_id)
 
 
 # Global SQL agent instance
-sql_agent = SQLGenerationAgent()
+DEFAULT_DATASET_ID = os.getenv("BQ_DATASET_ID", "bigquery-public-data.thelook_ecommerce")
+DEFAULT_MAX_RESULTS = int(os.getenv("MAX_QUERY_RESULTS", "10000"))
+DEFAULT_API_KEY = os.getenv("GEMINI_API_KEY")
+
+sql_agent = SQLGenerationAgent(
+    dataset_id=DEFAULT_DATASET_ID,
+    max_results=DEFAULT_MAX_RESULTS,
+    google_api_key=DEFAULT_API_KEY,
+)

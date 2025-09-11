@@ -12,7 +12,7 @@ import signal
 from typing import Any, Dict
 from contextlib import redirect_stdout, redirect_stderr
 
-from infrastructure.config import config
+from infrastructure.config import ExecutionLimits
 from domain.entities import ExecutionStatus, ExecutionResults
 from infrastructure.logging import get_logger
 from .base import CodeExecutor
@@ -33,11 +33,11 @@ def timeout_handler(signum, frame):
 class SecureExecutor(CodeExecutor):
     """Secure Python code executor with resource limits and sandboxing."""
     
-    def __init__(self):
+    def __init__(self, execution_limits: ExecutionLimits):
         """Initialize the secure executor."""
-        self.max_execution_time = config.execution_limits.max_execution_time
-        self.max_memory_mb = config.execution_limits.max_memory_mb
-        self.max_output_size_mb = config.execution_limits.max_output_size_mb
+        self.max_execution_time = execution_limits.max_execution_time
+        self.max_memory_mb = execution_limits.max_memory_mb
+        self.max_output_size_mb = execution_limits.max_output_size_mb
     
     def execute_code(self, code: str, context: Dict[str, Any] = None) -> ExecutionResults:
         """

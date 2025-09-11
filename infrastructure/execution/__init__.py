@@ -3,9 +3,9 @@ from .base import CodeExecutor
 from .executor import SecureExecutor
 from .validator import CodeValidator, ValidationResult
 
-# Default bindings used by application
-secure_executor: CodeExecutor = SecureExecutor()
-validator = CodeValidator()
+# Default bindings used by application; injected at runtime
+secure_executor: CodeExecutor | None = None
+validator: CodeValidator | None = None
 
 __all__ = [
     "CodeExecutor",

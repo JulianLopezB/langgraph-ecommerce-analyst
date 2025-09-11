@@ -4,47 +4,49 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from .config import LoggingConfig
+
 # Global flag to ensure logging is only configured once
 _logging_configured = False
 
-def setup_logging(debug: bool = False, log_file: Optional[str] = None) -> None:
-    """
-    Setup centralized logging configuration using settings from config.py.
-    
+
+def setup_logging(logging_config: Optional[LoggingConfig] = None, debug: bool = False, log_file: Optional[str] = None) -> None:
+    """Setup centralized logging configuration.
+
     Args:
+        logging_config: Configuration settings for logging. If None, defaults are used.
         debug: Enable debug level logging (overrides config)
         log_file: Optional log file path (overrides config)
     """
     global _logging_configured
-    
+
     if _logging_configured:
         return
-    
-    # Import config here to avoid circular imports
-    from .config import config
-    
+
+    logging_config = logging_config or LoggingConfig()
+
     # Create logs directory
     log_dir = Path("logs")
     log_dir.mkdir(exist_ok=True)
-    
+
     # Use config settings with overrides
-    log_file = log_file or config.logging_settings.file_path or "logs/agent.log"
-    log_level = logging.DEBUG if debug else getattr(logging, config.logging_settings.level.upper())
-    log_format = config.logging_settings.format
-    
+    log_file = log_file or logging_config.file_path or "logs/agent.log"
+    log_level = logging.DEBUG if debug else getattr(logging, logging_config.level.upper())
+    log_format = logging_config.format
+
     # Create handlers based on config
     handlers = []
-    
-    if config.logging_settings.console_output:
+
+    if logging_config.console_output:
         handlers.append(logging.StreamHandler(sys.stdout))
-    
-    if config.logging_settings.file_output:
+
+    if logging_config.file_output:
         handlers.append(logging.FileHandler(log_file, mode='a', encoding='utf-8'))
-    
+
     # Ensure we have at least one handler
     if not handlers:
         handlers.append(logging.StreamHandler(sys.stdout))
-    
+
     # Configure logging with force=True to override any existing config
     logging.basicConfig(
         level=log_level,
@@ -52,15 +54,15 @@ def setup_logging(debug: bool = False, log_file: Optional[str] = None) -> None:
         handlers=handlers,
         force=True  # This is key - forces reconfiguration
     )
-    
+
     # Set specific loggers
     logging.getLogger('urllib3').setLevel(logging.WARNING)
-    logging.getLogger('google').setLevel(logging.WARNING) 
+    logging.getLogger('google').setLevel(logging.WARNING)
     logging.getLogger('matplotlib').setLevel(logging.WARNING)
-    
+
     # Mark as configured
     _logging_configured = True
-    
+
     # Log that logging is now configured
     logger = logging.getLogger(__name__)
     logger.info("=== Logging system initialized ===")

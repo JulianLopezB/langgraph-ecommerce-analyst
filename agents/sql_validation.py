@@ -3,15 +3,11 @@
 from typing import TYPE_CHECKING
 
 from agents.schema_agent import DataUnderstanding
-from infrastructure.config import config
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 from infrastructure.logging import get_logger
 from utils.sql_utils import clean_sql_query
-
-DATASET_ID = config.api_configurations.dataset_id
-MAX_RESULTS = config.api_configurations.max_query_results
 
 logger = get_logger(__name__)
 
@@ -19,12 +15,12 @@ if TYPE_CHECKING:  # pragma: no cover
     from agents.sql_agent import SQLGenerationResult
 
 
-def init_sql_validator():
+def init_sql_validator(api_key: str | None, dataset_id: str):
     """Initialize LangChain SQL validation chain."""
     try:
         langchain_llm = ChatGoogleGenerativeAI(
             model="gemini-1.5-flash",
-            google_api_key=config.api_configurations.gemini_api_key,
+            google_api_key=api_key,
             temperature=0.1,
         )
 
@@ -62,7 +58,7 @@ def init_sql_validator():
                 ("system", validation_system_prompt),
                 ("human", "Validate this BigQuery SQL query:\n\n{query}"),
             ]
-        )
+        ).format(DATASET_ID=dataset_id)
 
         sql_validation_chain = (
             validation_prompt | langchain_llm | StrOutputParser()
@@ -77,17 +73,17 @@ def init_sql_validator():
 
 
 def validate_sql_with_langchain(
-    sql_validation_chain, sql_query: str
+    sql_validation_chain, sql_query: str, dataset_id: str, max_results: int
 ) -> str:
     """Validate SQL query using LangChain validation chain."""
     if sql_validation_chain is None:
         logger.warning("LangChain SQL validator not available, using basic cleaning")
-        return clean_sql_query(sql_query, add_dataset_prefix=False, add_limit=True)
+        return clean_sql_query(sql_query, dataset_id, max_results, add_dataset_prefix=False, add_limit=True)
 
     try:
         validated_sql = sql_validation_chain.invoke({"query": sql_query})
         validated_sql = clean_sql_query(
-            validated_sql, add_dataset_prefix=False, add_limit=True
+            validated_sql, dataset_id, max_results, add_dataset_prefix=False, add_limit=True
         )
         logger.info("SQL query validated successfully with LangChain")
         return validated_sql
@@ -95,11 +91,11 @@ def validate_sql_with_langchain(
         logger.warning(
             f"LangChain SQL validation failed: {e}, falling back to basic cleaning"
         )
-        return clean_sql_query(sql_query, add_dataset_prefix=False, add_limit=True)
+        return clean_sql_query(sql_query, dataset_id, max_results, add_dataset_prefix=False, add_limit=True)
 
 
 def optimize_and_validate(
-    sql_result, data_understanding: DataUnderstanding
+    sql_result, data_understanding: DataUnderstanding, dataset_id: str, max_results: int
 ):
     """Apply final optimizations and validations to the SQL."""
     from agents.sql_agent import SQLGenerationResult
@@ -107,21 +103,21 @@ def optimize_and_validate(
     sql_query = sql_result.sql_query
     optimizations = list(sql_result.optimization_applied)
 
-    if DATASET_ID not in sql_query:
+    if dataset_id not in sql_query:
         for table_name in ["orders", "order_items", "products", "users"]:
             sql_query = sql_query.replace(
-                f" {table_name} ", f" `{DATASET_ID}.{table_name}` "
+                f" {table_name} ", f" `{dataset_id}.{table_name}` "
             )
             sql_query = sql_query.replace(
-                f"FROM {table_name}", f"FROM `{DATASET_ID}.{table_name}`"
+                f"FROM {table_name}", f"FROM `{dataset_id}.{table_name}`"
             )
             sql_query = sql_query.replace(
-                f"JOIN {table_name}", f"JOIN `{DATASET_ID}.{table_name}`"
+                f"JOIN {table_name}", f"JOIN `{dataset_id}.{table_name}`"
             )
         optimizations.append("dataset_prefix_added")
 
     if "LIMIT" not in sql_query.upper():
-        sql_query += f" LIMIT {MAX_RESULTS}"
+        sql_query += f" LIMIT {max_results}"
         optimizations.append("limit_added")
 
     sql_query = sql_query.strip()
@@ -139,7 +135,7 @@ def optimize_and_validate(
     )
 
 
-def create_fallback_sql(query: str, data_understanding: DataUnderstanding):
+def create_fallback_sql(query: str, data_understanding: DataUnderstanding, dataset_id: str):
     """Create a basic fallback SQL when generation fails."""
     from agents.sql_agent import SQLGenerationResult
 
@@ -153,7 +149,7 @@ def create_fallback_sql(query: str, data_understanding: DataUnderstanding):
         SELECT *
         FROM `{DATASET_ID}.{primary_table}`
         LIMIT 100
-        """
+        """.format(DATASET_ID=dataset_id)
 
     return SQLGenerationResult(
         sql_query=fallback_sql.strip(),

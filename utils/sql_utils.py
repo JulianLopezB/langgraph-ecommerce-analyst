@@ -1,9 +1,14 @@
 """Shared SQL utility functions."""
 import re
-from utils.config_helpers import DATASET_ID, MAX_RESULTS
 
 
-def clean_sql_query(sql_query: str, add_dataset_prefix: bool = True, add_limit: bool = True) -> str:
+def clean_sql_query(
+    sql_query: str,
+    dataset_id: str,
+    max_results: int,
+    add_dataset_prefix: bool = True,
+    add_limit: bool = True,
+) -> str:
     """
     Clean and format SQL query by removing markdown and adding necessary prefixes.
     Table names are normalized using regex-based whole-word matching that is
@@ -39,13 +44,13 @@ def clean_sql_query(sql_query: str, add_dataset_prefix: bool = True, add_limit: 
             re.IGNORECASE,
         )
         sql_query = pattern.sub(
-            lambda m: f"`{DATASET_ID}.{m.group(0).lower()}`",
+            lambda m: f"`{dataset_id}.{m.group(0).lower()}`",
             sql_query,
         )
     
     # Ensure LIMIT clause for performance if requested
     if add_limit and "LIMIT" not in sql_query.upper():
-        sql_query += f" LIMIT {MAX_RESULTS}"
+        sql_query += f" LIMIT {max_results}"
     
     return sql_query.strip()
 

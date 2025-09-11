@@ -9,7 +9,7 @@ import time
 from dataclasses import dataclass
 from typing import List, Dict, Any, Set
 
-from infrastructure.config import config
+from infrastructure.config import SecurityConfig
 from infrastructure.logging import get_logger
 
 logger = get_logger(__name__)
@@ -29,10 +29,10 @@ class ValidationResult:
 class CodeValidator:
     """Validates generated Python code for syntax, security, and performance."""
     
-    def __init__(self):
+    def __init__(self, security_config: SecurityConfig):
         """Initialize validator with security configuration."""
-        self.forbidden_patterns = config.security_settings.forbidden_patterns
-        self.allowed_imports = set(config.security_settings.allowed_imports)
+        self.forbidden_patterns = security_config.forbidden_patterns
+        self.allowed_imports = set(security_config.allowed_imports)
         
         # Additional security patterns
         # `__import__` is blocked to prevent dynamic module loading.

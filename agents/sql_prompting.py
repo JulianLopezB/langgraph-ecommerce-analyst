@@ -4,15 +4,13 @@ from typing import List
 
 from agents.process_classifier import ProcessTypeResult
 from agents.schema_agent import DataUnderstanding, ColumnAnalysis
-from infrastructure.config import config
-
-DATASET_ID = config.api_configurations.dataset_id
 
 
 def create_sql_generation_prompt(
     query: str,
     data_understanding: DataUnderstanding,
     process_result: ProcessTypeResult,
+    dataset_id: str,
 ) -> str:
     """Create the AI prompt for SQL generation."""
 
@@ -230,7 +228,7 @@ LIMIT 1000
 ```
 
 Generate a BigQuery SQL query that directly answers the user's question.
-"""
+""".format(DATASET_ID=dataset_id)
 
 
 def _format_tables_for_prompt(tables: List) -> str:
@@ -315,6 +313,6 @@ ANALYSIS PATTERNS:
 - Dates: DATE(o.created_at) to convert TIMESTAMP to DATE
 - Customer behavior: Join users with orders and order_items
 - Churn analysis: Calculate days since last order using existing orders table
-"""
+""".format(DATASET_ID=dataset_id)
     return schema_template
 

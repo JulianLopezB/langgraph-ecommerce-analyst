@@ -7,7 +7,6 @@ from typing import Optional, Dict, Any
 import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
-from infrastructure.config import config
 from infrastructure.logging import get_logger
 from tracing.langsmith_setup import tracer, trace_llm_operation
 from .base import LLMClient
@@ -30,7 +29,7 @@ class GeminiClient(LLMClient):
     
     def __init__(self, api_key: Optional[str] = None):
         """Initialize Gemini service."""
-        self.api_key = api_key or config.api_configurations.gemini_api_key
+        self.api_key = api_key or os.getenv("GEMINI_API_KEY")
         if not self.api_key:
             raise ValueError("Gemini API key not provided")
         
