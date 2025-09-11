@@ -4,8 +4,8 @@ from dataclasses import dataclass
 import json
 
 from domain.entities import ProcessType
-from services.llm_service import GeminiService
-from logging_config import get_logger
+from infrastructure.llm import llm_client
+from infrastructure.logging import get_logger
 from tracing.langsmith_setup import tracer, trace_agent_operation
 
 logger = get_logger(__name__)
@@ -52,7 +52,7 @@ class SchemaIntelligenceAgent:
     
     def __init__(self):
         """Initialize the schema intelligence agent."""
-        self.llm_service = GeminiService()
+        self.llm_service = llm_client
         logger.info("SchemaIntelligenceAgent initialized")
     
     def understand_data(self, query: str, schema_info: Dict[str, Any], 

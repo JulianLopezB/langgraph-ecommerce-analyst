@@ -1,4 +1,4 @@
-"""LLM service for Google Gemini integration."""
+"""Google Gemini implementation of :class:`LLMClient`."""
 import os
 import time
 from dataclasses import dataclass
@@ -7,9 +7,10 @@ from typing import Optional, Dict, Any
 import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
-from config import config
-from logging_config import get_logger
+from infrastructure.config import config
+from infrastructure.logging import get_logger
 from tracing.langsmith_setup import tracer, trace_llm_operation
+from .base import LLMClient
 
 logger = get_logger(__name__)
 
@@ -24,8 +25,8 @@ class LLMResponse:
     confidence: float = 0.0
 
 
-class GeminiService:
-    """Service for interacting with Google Gemini API."""
+class GeminiClient(LLMClient):
+    """Client for interacting with Google Gemini API."""
     
     def __init__(self, api_key: Optional[str] = None):
         """Initialize Gemini service."""

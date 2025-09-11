@@ -21,7 +21,7 @@ def setup_logging(debug: bool = False, log_file: Optional[str] = None) -> None:
         return
     
     # Import config here to avoid circular imports
-    from config import config
+    from .config import config
     
     # Create logs directory
     log_dir = Path("logs")

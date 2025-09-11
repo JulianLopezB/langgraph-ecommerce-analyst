@@ -13,10 +13,10 @@ from agents.sql_validation import (
     optimize_and_validate,
     validate_sql_with_langchain,
 )
-from logging_config import get_logger
-from services.llm_service import GeminiService
+from infrastructure.logging import get_logger
+from infrastructure.llm import llm_client
 from tracing.langsmith_setup import tracer, trace_agent_operation
-from config import config
+from infrastructure.config import config
 from utils.config_helpers import DATASET_ID, MAX_RESULTS
 
 logger = get_logger(__name__)
@@ -39,7 +39,7 @@ class SQLGenerationAgent:
     
     def __init__(self):
         """Initialize the SQL generation agent."""
-        self.llm_service = GeminiService()
+        self.llm_service = llm_client
 
         # Initialize LangChain SQL validator
         self.sql_validation_chain = init_sql_validator()

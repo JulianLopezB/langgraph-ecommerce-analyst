@@ -4,8 +4,8 @@ import json
 from typing import TYPE_CHECKING
 
 from agents.schema_agent import DataUnderstanding
-from config import config
-from logging_config import get_logger
+from infrastructure.config import config
+from infrastructure.logging import get_logger
 
 DATASET_ID = config.api_configurations.dataset_id
 

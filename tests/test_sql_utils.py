@@ -4,7 +4,7 @@ import sys
 import pytest
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from config import config
+from infrastructure.config import config
 from utils.sql_utils import clean_sql_query
 
 DATASET = config.api_configurations.dataset_id

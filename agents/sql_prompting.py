@@ -4,7 +4,7 @@ from typing import List
 
 from agents.process_classifier import ProcessTypeResult
 from agents.schema_agent import DataUnderstanding, ColumnAnalysis
-from config import config
+from infrastructure.config import config
 
 DATASET_ID = config.api_configurations.dataset_id
 

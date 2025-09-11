@@ -4,17 +4,16 @@ from typing import Dict, Any
 
 import pandas as pd
 
-from bq_client import BigQueryRunner
-from code_generation.validators import validator
-from execution.sandbox import secure_executor
-from logging_config import get_logger
-from services.llm_service import GeminiService
+from infrastructure.persistence import data_repository
+from infrastructure.execution import validator, secure_executor
+from infrastructure.logging import get_logger
+from infrastructure.llm import llm_client
 from workflow.state import AnalysisState
 from domain.entities import ConversationMessage
 
 logger = get_logger(__name__)
-bq_client = BigQueryRunner()
-llm_service = GeminiService()
+data_repo = data_repository
+llm_service = llm_client
 
 
 def execute_sql(state: AnalysisState) -> AnalysisState:
@@ -22,7 +21,7 @@ def execute_sql(state: AnalysisState) -> AnalysisState:
     logger.info("Executing SQL query")
 
     try:
-        df = bq_client.execute_query(state["sql_query"])
+        df = data_repo.execute_query(state["sql_query"])
         state["raw_dataset"] = df
 
         data_info = {

@@ -1,6 +1,6 @@
 """Code validation and security scanning for generated Python code.
 
-Dynamic imports via `__import__` are prohibited. Generated code must rely on
+Dynamic imports via ``__import__`` are prohibited. Generated code must rely on
 modules that are preloaded into the sandbox.
 """
 import ast
@@ -9,8 +9,8 @@ import time
 from dataclasses import dataclass
 from typing import List, Dict, Any, Set
 
-from config import config
-from logging_config import get_logger
+from infrastructure.config import config
+from infrastructure.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -240,5 +240,3 @@ class CodeValidator:
             logger.info(f"Removed {module_name} from allowed imports")
 
 
-# Global validator instance
-validator = CodeValidator()

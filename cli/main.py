@@ -3,7 +3,7 @@ from typing import Optional
 
 import click
 
-from logging_config import get_logger
+from infrastructure.logging import get_logger
 
 from .interface import DataAnalysisCLI
 

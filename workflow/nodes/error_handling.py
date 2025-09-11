@@ -1,7 +1,7 @@
 """Error handling node."""
 from datetime import datetime
 
-from logging_config import get_logger
+from infrastructure.logging import get_logger
 from workflow.state import AnalysisState
 from domain.entities import ConversationMessage
 

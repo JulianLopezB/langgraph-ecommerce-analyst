@@ -3,14 +3,14 @@ from datetime import datetime
 from typing import Dict, Any
 
 from agents.process_classifier import process_classifier
-from bq_client import BigQueryRunner
-from logging_config import get_logger
+from infrastructure.persistence import data_repository
+from infrastructure.logging import get_logger
 from tracing.langsmith_setup import tracer, trace_agent_operation
 from workflow.state import AnalysisState
 from domain.entities import ProcessType, ConversationMessage
 
 logger = get_logger(__name__)
-bq_client = BigQueryRunner()
+data_repo = data_repository
 
 
 def _get_schema_info() -> Dict[str, Any]:
@@ -20,7 +20,7 @@ def _get_schema_info() -> Dict[str, Any]:
         core_tables = ["orders", "order_items", "products", "users"]
         for table in core_tables:
             try:
-                columns = bq_client.get_table_schema(table)
+                columns = data_repo.get_table_schema(table)
                 schema_info[table] = {"columns": columns}
             except Exception as e:
                 logger.warning(f"Could not get schema for {table}: {e}")
