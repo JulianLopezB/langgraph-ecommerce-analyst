@@ -9,7 +9,8 @@ from code_generation.validators import validator
 from execution.sandbox import secure_executor
 from logging_config import get_logger
 from services.llm_service import GeminiService
-from workflow.state import AnalysisState, ConversationMessage
+from workflow.state import AnalysisState
+from domain.entities import ConversationMessage
 
 logger = get_logger(__name__)
 bq_client = BigQueryRunner()
@@ -137,7 +138,7 @@ def generate_python_code(state: AnalysisState) -> AnalysisState:
 
         generated_code = state["generated_code"]
         if generated_code is None:
-            from workflow.state import GeneratedCode  # avoid circular
+            from domain.entities import GeneratedCode  # avoid circular
             generated_code = GeneratedCode(
                 code_content=python_code,
                 template_used=analysis_context["process_data"].get("process_type", "unknown"),
