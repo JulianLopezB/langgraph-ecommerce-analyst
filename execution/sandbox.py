@@ -323,8 +323,3 @@ class ProcessSafeExecutor:
                 error_message=f"Process execution error: {str(e)}"
             )
             result_queue.put(error_result)
-
-
-# Global executor instances
-secure_executor = SecureExecutor()
-process_executor = ProcessSafeExecutor()

@@ -233,7 +233,3 @@ class CodeValidator:
         if module_name in self.allowed_imports:
             self.allowed_imports.remove(module_name)
             logger.info(f"Removed {module_name} from allowed imports")
-
-
-# Global validator instance
-validator = CodeValidator()

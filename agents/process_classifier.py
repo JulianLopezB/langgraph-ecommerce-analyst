@@ -6,7 +6,7 @@ from typing import Dict, Any, List
 from workflow.state import ProcessType
 from logging_config import get_logger
 from services.llm_service import GeminiService
-from tracing.langsmith_setup import tracer, trace_agent_operation
+from tracing.langsmith_setup import LangSmithTracer, trace_agent_operation
 
 logger = get_logger(__name__)
 
@@ -28,10 +28,11 @@ class ProcessTypeResult:
 
 class ProcessTypeClassifier:
     """AI agent that determines the optimal process type for a query."""
-    
-    def __init__(self):
-        """Initialize the process classifier."""
-        self.llm_service = GeminiService()
+
+    def __init__(self, llm_service: GeminiService, tracer: LangSmithTracer):
+        """Initialize the process classifier with dependencies."""
+        self.llm_service = llm_service
+        self.tracer = tracer
         logger.info("ProcessTypeClassifier initialized")
     
     def classify(self, query: str, schema_info: Dict[str, Any]) -> ProcessTypeResult:
@@ -46,6 +47,7 @@ class ProcessTypeClassifier:
             ProcessTypeResult with classification and metadata
         """
         with trace_agent_operation(
+            self.tracer,
             name="classify_process_type",
             query=query,
             schema_tables=len(schema_info)
@@ -66,7 +68,7 @@ class ProcessTypeClassifier:
                 result = self._parse_classification_response(response.content, query)
                 
                 # Log metrics
-                tracer.log_metrics({
+                self.tracer.log_metrics({
                     "process_type_classified": result.process_type.value,
                     "classification_confidence": result.confidence,
                     "complexity_level": result.complexity_level,
@@ -217,7 +219,3 @@ Think step by step:
                     reasoning="Fallback: Default to SQL for data analysis",
                     complexity_level="medium"
                 )
-
-
-# Global classifier instance
-process_classifier = ProcessTypeClassifier()

@@ -9,7 +9,7 @@ from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
 from config import config
 from logging_config import get_logger
-from tracing.langsmith_setup import tracer, trace_llm_operation
+from tracing.langsmith_setup import LangSmithTracer, trace_llm_operation
 
 logger = get_logger(__name__)
 
@@ -26,15 +26,17 @@ class LLMResponse:
 
 class GeminiService:
     """Service for interacting with Google Gemini API."""
-    
-    def __init__(self, api_key: Optional[str] = None):
+
+    def __init__(self, api_key: Optional[str] = None, tracer: Optional[LangSmithTracer] = None):
         """Initialize Gemini service."""
         self.api_key = api_key or config.api_configurations.gemini_api_key
         if not self.api_key:
             raise ValueError("Gemini API key not provided")
-        
+
+        self.tracer = tracer or LangSmithTracer()
+
         genai.configure(api_key=self.api_key)
-        
+
         # Configure safety settings for code generation
         self.safety_settings = {
             HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
@@ -55,6 +57,7 @@ class GeminiService:
         start_time = time.time()
         
         with trace_llm_operation(
+            self.tracer,
             name="gemini_generate_text",
             model="gemini-1.5-flash",
             temperature=temperature,
@@ -79,7 +82,7 @@ class GeminiService:
                     tokens_used = self._estimate_tokens(prompt + content)
                     
                     # Log metrics to trace
-                    tracer.log_metrics({
+                    self.tracer.log_metrics({
                         "response_time": response_time,
                         "tokens_used": tokens_used,
                         "content_length": len(content),
@@ -104,6 +107,7 @@ class GeminiService:
     def generate_adaptive_python_code(self, analysis_context: Dict[str, Any]) -> str:
         """Generate adaptive Python code based on actual data characteristics."""
         with trace_llm_operation(
+            self.tracer,
             name="gemini_generate_adaptive_python",
             model="gemini-1.5-flash",
             original_query=analysis_context.get("original_query", "unknown")[:50],
@@ -188,7 +192,7 @@ class GeminiService:
             python_code = self._clean_python_code(python_code)
             
             # Log Python code generation metrics
-            tracer.log_metrics({
+            self.tracer.log_metrics({
                 "python_generation_prompt_length": len(prompt),
                 "generated_code_length": len(python_code),
                 "process_type": process_data.get("process_type", "unknown"),

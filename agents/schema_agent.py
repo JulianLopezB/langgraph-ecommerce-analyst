@@ -6,7 +6,7 @@ import json
 from workflow.state import ProcessType
 from services.llm_service import GeminiService
 from logging_config import get_logger
-from tracing.langsmith_setup import tracer, trace_agent_operation
+from tracing.langsmith_setup import LangSmithTracer, trace_agent_operation
 
 logger = get_logger(__name__)
 
@@ -49,10 +49,11 @@ class DataUnderstanding:
 
 class SchemaIntelligenceAgent:
     """AI agent that understands data schemas semantically, not just syntactically."""
-    
-    def __init__(self):
-        """Initialize the schema intelligence agent."""
-        self.llm_service = GeminiService()
+
+    def __init__(self, llm_service: GeminiService, tracer: LangSmithTracer):
+        """Initialize the schema intelligence agent with dependencies."""
+        self.llm_service = llm_service
+        self.tracer = tracer
         logger.info("SchemaIntelligenceAgent initialized")
     
     def understand_data(self, query: str, schema_info: Dict[str, Any], 
@@ -69,6 +70,7 @@ class SchemaIntelligenceAgent:
             DataUnderstanding with semantic analysis of relevant data
         """
         with trace_agent_operation(
+            self.tracer,
             name="analyze_data_schema",
             query=query,
             process_type=process_type.value,
@@ -87,7 +89,7 @@ class SchemaIntelligenceAgent:
                 understanding = self._parse_schema_analysis(response.content, query)
                 
                 # Log metrics
-                tracer.log_metrics({
+                self.tracer.log_metrics({
                     "relevant_tables_found": len(understanding.relevant_tables),
                     "target_metrics_identified": len(understanding.target_metrics),
                     "grouping_dimensions_found": len(understanding.grouping_dimensions),
@@ -311,7 +313,3 @@ Think semantically about data relationships and user intent, not just column nam
             aggregation_needed=True,
             complexity_score=0.8  # High complexity since we couldn't analyze it
         )
-
-
-# Global schema agent instance
-schema_agent = SchemaIntelligenceAgent()

@@ -11,7 +11,7 @@ from agents.process_classifier import ProcessTypeResult
 from agents.schema_agent import DataUnderstanding, ColumnAnalysis
 from logging_config import get_logger
 from services.llm_service import GeminiService
-from tracing.langsmith_setup import tracer, trace_agent_operation
+from tracing.langsmith_setup import LangSmithTracer, trace_agent_operation
 from utils.sql_utils import clean_sql_query
 from config import config
 
@@ -35,14 +35,15 @@ class SQLGenerationResult:
 
 class SQLGenerationAgent:
     """AI agent that generates intelligent SQL queries based on data understanding."""
-    
-    def __init__(self):
-        """Initialize the SQL generation agent."""
-        self.llm_service = GeminiService()
-        
+
+    def __init__(self, llm_service: GeminiService, tracer: LangSmithTracer):
+        """Initialize the SQL generation agent with dependencies."""
+        self.llm_service = llm_service
+        self.tracer = tracer
+
         # Initialize LangChain SQL validator
         self._init_sql_validator()
-        
+
         logger.info("SQLGenerationAgent initialized")
     
     def generate_sql(self, query: str, data_understanding: DataUnderstanding, 
@@ -59,6 +60,7 @@ class SQLGenerationAgent:
             SQLGenerationResult with generated query and metadata
         """
         with trace_agent_operation(
+            self.tracer,
             name="generate_intelligent_sql",
             query=query,
             target_tables=len(data_understanding.relevant_tables),
@@ -83,7 +85,7 @@ class SQLGenerationAgent:
                 sql_result.sql_query = self._validate_sql_with_langchain(sql_result.sql_query)
                 
                 # Log metrics
-                tracer.log_metrics({
+                self.tracer.log_metrics({
                     "sql_generation_success": True,
                     "query_length": len(sql_result.sql_query),
                     "tables_used": len(sql_result.tables_used),
@@ -614,7 +616,3 @@ ANALYSIS PATTERNS:
             metrics_computed=[],
             confidence=0.3
         )
-
-
-# Global SQL agent instance
-sql_agent = SQLGenerationAgent()

@@ -4,7 +4,7 @@ import pandas as pd
 from google.cloud import bigquery
 
 from logging_config import get_logger
-from tracing.langsmith_setup import tracer
+from tracing.langsmith_setup import LangSmithTracer
 from config import config
 
 logger = get_logger(__name__)
@@ -12,18 +12,25 @@ logger = get_logger(__name__)
 
 class BigQueryRunner:
     """A lean BigQuery client for executing SQL queries and returning DataFrame results."""
-    
-    def __init__(self, project_id: Optional[str] = None, dataset_id: Optional[str] = None) -> None:
+
+    def __init__(
+        self,
+        project_id: Optional[str] = None,
+        dataset_id: Optional[str] = None,
+        tracer: Optional[LangSmithTracer] = None,
+    ) -> None:
         """Initialize BigQuery client.
-        
+
         Args:
             project_id: Google Cloud project ID. If None, uses default credentials.
             dataset_id: BigQuery dataset ID. If None, uses value from global config.
+            tracer: LangSmith tracer instance for instrumentation.
         """
         logger.info("Initializing BigQuery client")
         try:
             self.client = bigquery.Client(project=project_id)
             self.dataset_id = dataset_id or config.api_configurations.dataset_id
+            self.tracer = tracer or LangSmithTracer()
             logger.info(f"BigQuery client initialized for dataset: {self.dataset_id}")
         except Exception as e:
             logger.error(f"Failed to initialize BigQuery client: {str(e)}")
@@ -41,7 +48,7 @@ class BigQueryRunner:
         Raises:
             Exception: If query execution fails.
         """
-        with tracer.trace_bigquery_operation(
+        with self.tracer.trace_bigquery_operation(
             name="execute_query",
             query=sql_query,
             dataset=self.dataset_id
@@ -52,7 +59,7 @@ class BigQueryRunner:
                 df = query_job.result().to_dataframe()
                 
                 # Log metrics to trace
-                tracer.log_metrics({
+                self.tracer.log_metrics({
                     "rows_returned": len(df),
                     "columns_returned": len(df.columns),
                     "query_length": len(sql_query),

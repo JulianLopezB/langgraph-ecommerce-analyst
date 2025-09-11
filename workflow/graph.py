@@ -1,5 +1,5 @@
 """LangGraph workflow orchestration for the data analysis agent."""
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from datetime import datetime
 import uuid
 
@@ -7,7 +7,15 @@ from langgraph.graph import StateGraph, END
 from langchain_core.runnables import RunnableLambda
 
 from workflow.state import AnalysisState, create_initial_state, ConversationMessage
-from workflow.nodes import workflow_nodes
+from workflow.nodes import WorkflowNodes
+from agents.process_classifier import ProcessTypeClassifier
+from agents.schema_agent import SchemaIntelligenceAgent
+from agents.sql_agent import SQLGenerationAgent
+from bq_client import BigQueryRunner
+from code_generation.validators import CodeValidator
+from execution.sandbox import SecureExecutor
+from services.llm_service import GeminiService
+from tracing.langsmith_setup import LangSmithTracer
 from logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -15,9 +23,45 @@ logger = get_logger(__name__)
 
 class DataAnalysisAgent:
     """Main LangGraph agent for data analysis workflows."""
-    
-    def __init__(self):
-        """Initialize the data analysis agent."""
+
+    def __init__(
+        self,
+        tracer: Optional[LangSmithTracer] = None,
+        llm_service: Optional[GeminiService] = None,
+        bq_client: Optional[BigQueryRunner] = None,
+        process_classifier: Optional[ProcessTypeClassifier] = None,
+        schema_agent: Optional[SchemaIntelligenceAgent] = None,
+        sql_agent: Optional[SQLGenerationAgent] = None,
+        validator: Optional[CodeValidator] = None,
+        secure_executor: Optional[SecureExecutor] = None,
+        workflow_nodes: Optional[WorkflowNodes] = None,
+    ):
+        """Initialize the data analysis agent with explicit dependencies."""
+        self.tracer = tracer or LangSmithTracer()
+        self.llm_service = llm_service or GeminiService(tracer=self.tracer)
+        self.bq_client = bq_client or BigQueryRunner(tracer=self.tracer)
+        self.validator = validator or CodeValidator()
+        self.process_classifier = (
+            process_classifier
+            or ProcessTypeClassifier(self.llm_service, self.tracer)
+        )
+        self.schema_agent = (
+            schema_agent
+            or SchemaIntelligenceAgent(self.llm_service, self.tracer)
+        )
+        self.sql_agent = sql_agent or SQLGenerationAgent(self.llm_service, self.tracer)
+        self.secure_executor = secure_executor or SecureExecutor()
+        self.workflow_nodes = workflow_nodes or WorkflowNodes(
+            llm_service=self.llm_service,
+            bq_client=self.bq_client,
+            process_classifier=self.process_classifier,
+            schema_agent=self.schema_agent,
+            sql_agent=self.sql_agent,
+            validator=self.validator,
+            secure_executor=self.secure_executor,
+            tracer=self.tracer,
+        )
+
         self.graph = self._build_graph()
         self.app = self.graph.compile()
         logger.info("Data analysis agent initialized")
@@ -27,14 +71,14 @@ class DataAnalysisAgent:
         workflow = StateGraph(AnalysisState)
         
         # Add nodes
-        workflow.add_node("understand_query", workflow_nodes.understand_query)
-        workflow.add_node("generate_sql", workflow_nodes.generate_sql)
-        workflow.add_node("execute_sql", workflow_nodes.execute_sql)
-        workflow.add_node("generate_python_code", workflow_nodes.generate_python_code)
-        workflow.add_node("validate_code", workflow_nodes.validate_code)
-        workflow.add_node("execute_code", workflow_nodes.execute_code)
-        workflow.add_node("synthesize_results", workflow_nodes.synthesize_results)
-        workflow.add_node("handle_error", workflow_nodes.handle_error)
+        workflow.add_node("understand_query", self.workflow_nodes.understand_query)
+        workflow.add_node("generate_sql", self.workflow_nodes.generate_sql)
+        workflow.add_node("execute_sql", self.workflow_nodes.execute_sql)
+        workflow.add_node("generate_python_code", self.workflow_nodes.generate_python_code)
+        workflow.add_node("validate_code", self.workflow_nodes.validate_code)
+        workflow.add_node("execute_code", self.workflow_nodes.execute_code)
+        workflow.add_node("synthesize_results", self.workflow_nodes.synthesize_results)
+        workflow.add_node("handle_error", self.workflow_nodes.handle_error)
         
         # Set entry point
         workflow.set_entry_point("understand_query")
@@ -210,11 +254,11 @@ class DataAnalysisAgent:
 
 class SessionManager:
     """Manages analysis sessions and conversation history."""
-    
-    def __init__(self):
-        """Initialize session manager."""
+
+    def __init__(self, agent: Optional[DataAnalysisAgent] = None):
+        """Initialize session manager with optional agent."""
         self.sessions: Dict[str, Dict[str, Any]] = {}
-        self.agent = DataAnalysisAgent()
+        self.agent = agent or DataAnalysisAgent()
     
     def start_session(self, session_id: str = None) -> str:
         """Start a new analysis session."""
@@ -276,8 +320,3 @@ class SessionManager:
             logger.info(f"Deleted session: {session_id}")
             return True
         return False
-
-
-# Global instances
-data_analysis_agent = DataAnalysisAgent()
-session_manager = SessionManager()

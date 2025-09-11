@@ -5,15 +5,15 @@ from typing import Dict, Any
 import pandas as pd
 
 from workflow.state import AnalysisState, ProcessType, ConversationMessage, AnalysisLineage, GeneratedCode
-from agents.process_classifier import process_classifier, ProcessTypeResult
-from agents.schema_agent import schema_agent
-from agents.sql_agent import sql_agent
+from agents.process_classifier import ProcessTypeClassifier, ProcessTypeResult
+from agents.schema_agent import SchemaIntelligenceAgent
+from agents.sql_agent import SQLGenerationAgent
 from bq_client import BigQueryRunner
-from code_generation.validators import validator
-from execution.sandbox import secure_executor
+from code_generation.validators import CodeValidator
+from execution.sandbox import SecureExecutor
 from logging_config import get_logger
 from services.llm_service import GeminiService
-from tracing.langsmith_setup import tracer, trace_agent_operation
+from tracing.langsmith_setup import LangSmithTracer, trace_agent_operation
 from utils.sql_utils import clean_sql_query, format_error_message
 
 logger = get_logger(__name__)
@@ -21,11 +21,27 @@ logger = get_logger(__name__)
 
 class WorkflowNodes:
     """Collection of LangGraph workflow nodes."""
-    
-    def __init__(self):
+
+    def __init__(
+        self,
+        llm_service: GeminiService,
+        bq_client: BigQueryRunner,
+        process_classifier: ProcessTypeClassifier,
+        schema_agent: SchemaIntelligenceAgent,
+        sql_agent: SQLGenerationAgent,
+        validator: CodeValidator,
+        secure_executor: SecureExecutor,
+        tracer: LangSmithTracer,
+    ):
         """Initialize workflow nodes with required services."""
-        self.llm_service = GeminiService()
-        self.bq_client = BigQueryRunner()
+        self.llm_service = llm_service
+        self.bq_client = bq_client
+        self.process_classifier = process_classifier
+        self.schema_agent = schema_agent
+        self.sql_agent = sql_agent
+        self.validator = validator
+        self.secure_executor = secure_executor
+        self.tracer = tracer
     
     def understand_query(self, state: AnalysisState) -> AnalysisState:
         """
@@ -38,6 +54,7 @@ class WorkflowNodes:
             Updated state with process type classification
         """
         with trace_agent_operation(
+            self.tracer,
             name="understand_query_ai",
             user_query=state["user_query"],
             session_id=state["session_id"]
@@ -50,7 +67,7 @@ class WorkflowNodes:
                 state["data_schema"] = schema_info
                 
                 # Use AI agent to classify process type (replaces intent classification)
-                process_result = process_classifier.classify(state["user_query"], schema_info)
+                process_result = self.process_classifier.classify(state["user_query"], schema_info)
                 
                 # Update state with process type information
                 state["process_type"] = process_result.process_type
@@ -67,7 +84,7 @@ class WorkflowNodes:
                 }
                 
                 # Log metrics to trace
-                tracer.log_metrics({
+                self.tracer.log_metrics({
                     "process_type": process_result.process_type.value,
                     "confidence_score": process_result.confidence,
                     "needs_python_analysis": state["needs_python_analysis"],
@@ -129,9 +146,9 @@ class WorkflowNodes:
             )
             
             # Use AI agent to understand data schema semantically
-            data_understanding = schema_agent.understand_data(
-                state["user_query"], 
-                state["data_schema"], 
+            data_understanding = self.schema_agent.understand_data(
+                state["user_query"],
+                state["data_schema"],
                 state["process_type"]
             )
             
@@ -145,7 +162,7 @@ class WorkflowNodes:
             }
             
             # Use AI agent to generate intelligent SQL
-            sql_result = sql_agent.generate_sql(
+            sql_result = self.sql_agent.generate_sql(
                 state["user_query"],
                 data_understanding,
                 process_result
@@ -369,7 +386,7 @@ class WorkflowNodes:
                 raise ValueError("No code to validate")
             
             # Validate code using security validator
-            validation_result = validator.validate(state["generated_code"].code_content)
+            validation_result = self.validator.validate(state["generated_code"].code_content)
             state["validation_results"] = validation_result
             
             # Update generated code with validation info
@@ -417,7 +434,7 @@ class WorkflowNodes:
             }
             
             # Execute code in secure environment
-            execution_results = secure_executor.execute_code(
+            execution_results = self.secure_executor.execute_code(
                 state["generated_code"].code_content,
                 context
             )
@@ -659,7 +676,3 @@ class WorkflowNodes:
             logger.warning(f"Error generating summary stats: {e}")
             return {"error": "Could not generate summary statistics"}
     
-
-
-# Global nodes instance
-workflow_nodes = WorkflowNodes()

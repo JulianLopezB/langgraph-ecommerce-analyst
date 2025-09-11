@@ -166,21 +166,17 @@ class LangSmithTracer:
             logger.debug(f"Error logging metrics: {e}")
 
 
-# Global tracer instance
-tracer = LangSmithTracer()
-
-
-# Convenience decorators and context managers
-def trace_agent_operation(name: str, **metadata):
-    """Shorthand for tracing agent operations."""
+# Convenience decorators and context managers that require a tracer instance
+def trace_agent_operation(tracer: "LangSmithTracer", name: str, **metadata):
+    """Shorthand for tracing agent operations with an explicit tracer."""
     return tracer.trace_operation(name=name, operation_type="agent", **metadata)
 
 
-def trace_llm_operation(name: str, model: str = "gemini", **metadata):
-    """Shorthand for tracing LLM operations.""" 
+def trace_llm_operation(tracer: "LangSmithTracer", name: str, model: str = "gemini", **metadata):
+    """Shorthand for tracing LLM operations with an explicit tracer."""
     return tracer.trace_llm_call(name=name, model=model, **metadata)
 
 
-def traced_function(name: Optional[str] = None):
-    """Shorthand decorator for tracing functions."""
+def traced_function(tracer: "LangSmithTracer", name: Optional[str] = None):
+    """Shorthand decorator for tracing functions with an explicit tracer."""
     return tracer.trace_function(name=name)

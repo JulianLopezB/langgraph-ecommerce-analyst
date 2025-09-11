@@ -15,12 +15,14 @@ from prompt_toolkit import prompt
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.completion import WordCompleter
 
-from workflow.graph import session_manager
+from workflow.graph import SessionManager
 from config import config
 from logging_config import get_logger
 from utils.sql_utils import format_error_message
 
 logger = get_logger(__name__)
+
+session_manager = SessionManager()
 
 
 class DataAnalysisCLI:
