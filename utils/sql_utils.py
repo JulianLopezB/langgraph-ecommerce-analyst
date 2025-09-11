@@ -1,17 +1,20 @@
 """Shared SQL utility functions."""
-
+import re
 from utils.config_helpers import DATASET_ID, MAX_RESULTS
 
 
 def clean_sql_query(sql_query: str, add_dataset_prefix: bool = True, add_limit: bool = True) -> str:
     """
     Clean and format SQL query by removing markdown and adding necessary prefixes.
-    
+    Table names are normalized using regex-based whole-word matching that is
+    case-insensitive and only prefixes unqualified table names with the
+    configured dataset. Substrings such as ``preorders`` remain untouched.
+
     Args:
         sql_query: Raw SQL query string
         add_dataset_prefix: Whether to add BigQuery dataset prefix
         add_limit: Whether to ensure LIMIT clause exists
-        
+
     Returns:
         Cleaned SQL query string
     """
@@ -29,12 +32,16 @@ def clean_sql_query(sql_query: str, add_dataset_prefix: bool = True, add_limit: 
     if sql_query.endswith(';'):
         sql_query = sql_query[:-1]
     
-    # Add dataset prefix if missing and requested
-    if add_dataset_prefix and DATASET_ID not in sql_query:
-        for table in ["orders", "order_items", "products", "users"]:
-            sql_query = sql_query.replace(f" {table} ", f" `{DATASET_ID}.{table}` ")
-            sql_query = sql_query.replace(f"FROM {table}", f"FROM `{DATASET_ID}.{table}`")
-            sql_query = sql_query.replace(f"JOIN {table}", f"JOIN `{DATASET_ID}.{table}`")
+    # Add dataset prefix if requested using whole-word matching
+    if add_dataset_prefix:
+        pattern = re.compile(
+            rf"(?<![\w`]\.)\b({'|'.join(['orders', 'order_items', 'products', 'users'])})\b",
+            re.IGNORECASE,
+        )
+        sql_query = pattern.sub(
+            lambda m: f"`{DATASET_ID}.{m.group(0).lower()}`",
+            sql_query,
+        )
     
     # Ensure LIMIT clause for performance if requested
     if add_limit and "LIMIT" not in sql_query.upper():
@@ -73,5 +80,5 @@ def format_error_message(error_type: str, error_msg: str) -> str:
         friendly_msg += " (it needed too much memory)"
     elif "syntax" in error_msg_str.lower():
         friendly_msg += " (there was a formatting issue)"
-
+    
     return friendly_msg
