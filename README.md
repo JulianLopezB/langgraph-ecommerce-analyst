@@ -68,11 +68,45 @@ An AI-powered data analysis agent that processes e-commerce data from Google Big
    ```
 
 2. **Ask questions about your data**:
+    ```
+    🔍 Your question: Segment our customers using RFM analysis
+    🔍 Your question: What are the sales trends for the last quarter?
+    🔍 Your question: Forecast sales for the next 3 months
+    ```
+
+## 🐳 Docker Compose
+
+Run the application alongside its dependencies using Docker Compose.
+
+1. Ensure a `.env` file exists in the project root with the required configuration values.
+2. Build and start all services:
+   ```bash
+   docker-compose up --build
    ```
-   🔍 Your question: Segment our customers using RFM analysis
-   🔍 Your question: What are the sales trends for the last quarter?
-   🔍 Your question: Forecast sales for the next 3 months
+   This launches the application, a PostgreSQL database, and a RabbitMQ broker on an isolated
+   `app-network`, persists data in the `db_data` and `rabbitmq_data` volumes, and allocates a TTY
+   for the app service so you can use the interactive CLI directly.
+3. Stop the services when finished:
+   ```bash
+   docker-compose down
    ```
+
+## 🐳 Docker
+
+The Docker image installs system build tools and pre-builds CmdStan so Prophet-based
+forecasting works out of the box.
+
+Build the image:
+
+```bash
+ docker build -t langgraph-ecommerce-analyst .
+```
+
+Run the container:
+
+```bash
+ docker run --rm -it -e GEMINI_API_KEY=your_gemini_api_key_here langgraph-ecommerce-analyst
+```
 
 ## 📊 Example Queries
 
