@@ -4,10 +4,11 @@ import pytest
 from unittest.mock import Mock
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from domain.entities import ProcessType
 from application.orchestrators.analysis_workflow import AnalysisWorkflow
 
 
-def make_workflow(classification_output):
+def make_workflow(classification_output, validation_result=True):
     schema_analysis = Mock()
     schema_analysis.analyze.return_value = {"schema": "info"}
     process_classification = Mock()
@@ -17,7 +18,7 @@ def make_workflow(classification_output):
     python_generation = Mock()
     python_generation.generate.return_value = "print('hi')"
     validation = Mock()
-    validation.validate.return_value = True
+    validation.validate.return_value = validation_result
     execution = Mock()
     execution.run_query.return_value = [1]
     execution.execute_code.return_value = [2]
@@ -33,19 +34,40 @@ def make_workflow(classification_output):
         execution,
         synthesis,
     )
-    return workflow, python_generation, execution
+    return workflow, sql_generation, python_generation, validation, execution
 
 
-@pytest.mark.parametrize("raw_output", ["ProcessType.PYTHON", "Python analysis needed"])
+@pytest.mark.parametrize("raw_output", [ProcessType.PYTHON, "Python analysis needed"])
 def test_python_branch_triggered_for_normalized_process_type(raw_output):
-    workflow, python_generation, execution = make_workflow(raw_output)
+    workflow, sql_generation, python_generation, validation, execution = make_workflow(raw_output)
     workflow.run("question")
+
+    sql_generation.generate.assert_called_once()
+    execution.run_query.assert_called_once()
     python_generation.generate.assert_called_once()
     execution.execute_code.assert_called_once()
 
 
-def test_python_branch_skipped_when_not_python():
-    workflow, python_generation, execution = make_workflow("SQL")
+def test_sql_only_path():
+    workflow, sql_generation, python_generation, validation, execution = make_workflow(ProcessType.SQL)
     workflow.run("question")
+
+    sql_generation.generate.assert_called_once()
+    execution.run_query.assert_called_once()
     python_generation.generate.assert_not_called()
+    execution.execute_code.assert_not_called()
+
+
+def test_validation_failure_raises_value_error():
+    workflow, sql_generation, python_generation, validation, execution = make_workflow(
+        ProcessType.PYTHON, validation_result=False
+    )
+
+    with pytest.raises(ValueError):
+        workflow.run("question")
+
+    sql_generation.generate.assert_called_once()
+    execution.run_query.assert_called_once()
+    python_generation.generate.assert_called_once()
+    validation.validate.assert_called_once()
     execution.execute_code.assert_not_called()
