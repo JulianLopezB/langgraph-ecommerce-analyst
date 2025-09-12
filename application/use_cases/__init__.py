@@ -6,6 +6,7 @@ from .python_generation import PythonGenerationUseCase
 from .validation import CodeValidationUseCase
 from .execution import CodeExecutionUseCase
 from .synthesis import InsightSynthesisUseCase
+from .analysis import run_analysis
 
 __all__ = [
     "ProcessClassificationUseCase",
@@ -15,4 +16,5 @@ __all__ = [
     "CodeValidationUseCase",
     "CodeExecutionUseCase",
     "InsightSynthesisUseCase",
+    "run_analysis",
 ]
