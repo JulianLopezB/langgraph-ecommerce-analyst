@@ -40,3 +40,5 @@ prompt_toolkit>=3.0.0
 
 # Testing and Development
 pytest>=7.4.0
+flake8>=7.0.0
+black>=24.0.0
