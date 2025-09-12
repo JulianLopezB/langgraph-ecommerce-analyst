@@ -3,6 +3,8 @@ import sys
 from types import SimpleNamespace
 from unittest.mock import Mock
 import pandas as pd
+import logging
+import pytest
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
@@ -52,6 +54,36 @@ def test_bigquery_repository(monkeypatch):
     assert df.equals(mock_df)
     schema = repo.get_table_schema("orders")
     assert schema[0]["name"] == "id"
+
+
+def test_bigquery_repository_query_error(monkeypatch, caplog):
+    import infrastructure.persistence.bigquery as bigquery_module
+    mock_client = Mock()
+    mock_client.query.side_effect = Exception("query boom")
+    monkeypatch.setattr(
+        bigquery_module, "bigquery", SimpleNamespace(Client=lambda project=None: mock_client)
+    )
+    monkeypatch.setattr(bigquery_module, "tracer", DummyTracer())
+    repo = BigQueryRepository(project_id="pid", dataset_id="ds")
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(Exception, match="query boom"):
+            repo.execute_query("SELECT 1")
+    assert "BigQuery execution failed: query boom" in caplog.text
+
+
+def test_bigquery_repository_get_table_schema_error(monkeypatch, caplog):
+    import infrastructure.persistence.bigquery as bigquery_module
+    mock_client = Mock()
+    mock_client.get_table.side_effect = Exception("schema boom")
+    monkeypatch.setattr(
+        bigquery_module, "bigquery", SimpleNamespace(Client=lambda project=None: mock_client)
+    )
+    monkeypatch.setattr(bigquery_module, "tracer", DummyTracer())
+    repo = BigQueryRepository(project_id="pid", dataset_id="ds")
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(Exception, match="schema boom"):
+            repo.get_table_schema("orders")
+    assert "Failed to get schema for table orders: schema boom" in caplog.text
 
 
 def test_gemini_client(monkeypatch):
