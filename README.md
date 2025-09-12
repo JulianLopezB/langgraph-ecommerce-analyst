@@ -68,6 +68,20 @@ An AI-powered data analysis agent that processes e-commerce data from Google Big
    🔍 Your question: Forecast sales for the next 3 months
    ```
 
+## 🐳 Docker
+
+Build the image:
+
+```bash
+ docker build -t langgraph-ecommerce-analyst .
+```
+
+Run the container:
+
+```bash
+ docker run --rm -it -e GEMINI_API_KEY=your_gemini_api_key_here langgraph-ecommerce-analyst
+```
+
 ## 📊 Example Queries
 
 ### Customer Analysis
