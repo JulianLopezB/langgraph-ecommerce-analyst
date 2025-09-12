@@ -1,7 +1,5 @@
 """Main entry point for the LangGraph Data Analysis Agent."""
-import os
 import sys
-import logging
 import warnings
 from pathlib import Path
 
@@ -13,20 +11,22 @@ warnings.filterwarnings("ignore", category=UserWarning, module="google.cloud.big
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from cli.interface import main as cli_main
-from config import config
+from interface.cli.main import main as cli_main  # noqa: E402
+from infrastructure.config import get_config  # noqa: E402
+from infrastructure.logging import get_logger
 
 
-def setup_logging(debug: bool = False) -> None:
+logger = get_logger(__name__)
+
+
+def setup_logging(config, debug: bool = False) -> None:
     """Set up logging configuration."""
-    from logging_config import setup_logging as setup_centralized_logging
-    
-    # Use centralized logging configuration
-    log_file = config.logging_settings.file_path or "logs/agent.log"
-    setup_centralized_logging(debug=debug, log_file=log_file)
+    from infrastructure.logging import setup_logging as setup_centralized_logging
+
+    setup_centralized_logging(config.logging_settings, debug=debug)
 
 
-def check_environment() -> None:
+def check_environment(config) -> None:
     """Check that required environment variables and dependencies are available."""
     missing_vars = []
     
@@ -57,24 +57,26 @@ def check_environment() -> None:
 def main() -> None:
     """Main entry point."""
     try:
+        config = get_config()
+
         # Setup logging first
-        setup_logging(debug=False)
-        
+        setup_logging(config, debug=False)
+
         # Check environment
-        check_environment()
-        
+        check_environment(config)
+
         # Start CLI (pass debug flag if needed)
         debug_mode = '--debug' in sys.argv
         if debug_mode:
-            setup_logging(debug=True)
-        
+            setup_logging(config, debug=True)
+
         cli_main()
         
     except KeyboardInterrupt:
         print("\\n👋 Goodbye!")
         sys.exit(0)
     except Exception as e:
-        logging.error(f"Fatal error: {str(e)}")
+        logger.error(f"Fatal error: {str(e)}")
         print(f"❌ Fatal error: {str(e)}")
         sys.exit(1)
 
