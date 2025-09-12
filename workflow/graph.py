@@ -136,15 +136,17 @@ class DataAnalysisAgent:
         logger.info(f"Starting analysis for query: {user_query[:100]}...")
 
         try:
-            # Create initial state
-            initial_state = create_initial_state(user_query, session_id, conversation_history)
-            
-            # Add user message to conversation
+            # Create initial state with any existing conversation history
+            history = list(conversation_history) if conversation_history else None
+            initial_state = create_initial_state(user_query, session_id, history)
+
+            # Record the new user message after loading existing history so
+            # downstream nodes receive the full conversation context
             user_message = ConversationMessage(
                 timestamp=datetime.now(),
                 role="user",
                 content=user_query,
-                message_type="query"
+                message_type="query",
             )
             initial_state["conversation_history"].append(user_message)
             

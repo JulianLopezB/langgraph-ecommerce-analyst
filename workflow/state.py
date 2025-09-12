@@ -67,7 +67,7 @@ def create_initial_state(
         insights="",
         error_context={},
         session_id=session_id,
-        conversation_history=conversation_history or [],
+        conversation_history=list(conversation_history) if conversation_history else [],
         next_step="understand_query",
         workflow_complete=False
     )
