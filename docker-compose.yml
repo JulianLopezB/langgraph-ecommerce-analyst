@@ -4,6 +4,8 @@ services:
   app:
     build: .
     command: python main.py
+    stdin_open: true
+    tty: true
     env_file:
       - .env
     depends_on:

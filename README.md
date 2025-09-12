@@ -78,7 +78,8 @@ Run the application alongside its dependencies using Docker Compose.
    docker-compose up --build
    ```
    This launches the application, a PostgreSQL database, and a RabbitMQ broker on an isolated
-   `app-network` and persists data in the `db_data` and `rabbitmq_data` volumes.
+   `app-network`, persists data in the `db_data` and `rabbitmq_data` volumes, and allocates a TTY
+   for the app service so you can use the interactive CLI directly.
 3. Stop the services when finished:
    ```bash
    docker-compose down
