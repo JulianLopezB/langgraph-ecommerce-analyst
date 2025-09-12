@@ -46,7 +46,11 @@ class AnalysisState(TypedDict, total=False):
     workflow_complete: bool
 
 
-def create_initial_state(user_query: str, session_id: str) -> AnalysisState:
+def create_initial_state(
+    user_query: str,
+    session_id: str,
+    conversation_history: Optional[List[ConversationMessage]] = None,
+) -> AnalysisState:
     """Create initial state for a new analysis request."""
     return AnalysisState(
         user_query=user_query,
@@ -63,7 +67,7 @@ def create_initial_state(user_query: str, session_id: str) -> AnalysisState:
         insights="",
         error_context={},
         session_id=session_id,
-        conversation_history=[],
+        conversation_history=conversation_history or [],
         next_step="understand_query",
         workflow_complete=False
     )

@@ -113,25 +113,31 @@ class DataAnalysisAgent:
         
         return workflow
     
-    def analyze(self, user_query: str, session_id: str = None) -> Dict[str, Any]:
+    def analyze(
+        self,
+        user_query: str,
+        session_id: str = None,
+        conversation_history: list[ConversationMessage] | None = None,
+    ) -> Dict[str, Any]:
         """
         Perform data analysis based on user query.
-        
+
         Args:
             user_query: Natural language query from user
             session_id: Optional session ID for tracking
-            
+            conversation_history: Prior conversation context
+
         Returns:
             Analysis results and conversation history
         """
         if session_id is None:
             session_id = str(uuid.uuid4())
-        
+
         logger.info(f"Starting analysis for query: {user_query[:100]}...")
-        
+
         try:
             # Create initial state
-            initial_state = create_initial_state(user_query, session_id)
+            initial_state = create_initial_state(user_query, session_id, conversation_history)
             
             # Add user message to conversation
             user_message = ConversationMessage(
@@ -247,11 +253,14 @@ class SessionManager:
         if session_id is None or self.session_store.get_session(session_id) is None:
             session_id = self.start_session(session_id)
 
-        # Perform analysis
-        results = self.agent.analyze(user_query, session_id)
-
         session = self.session_store.get_session(session_id)
+        history = list(session.conversation_history) if session else []
+
+        # Perform analysis
+        results = self.agent.analyze(user_query, session_id, history)
+
         if session:
+            session.conversation_history = []
             for msg in results.get("conversation_history", []):
                 try:
                     timestamp = datetime.fromisoformat(msg.get("timestamp", ""))

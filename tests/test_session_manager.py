@@ -13,7 +13,11 @@ def create_manager():
     store = InMemorySessionStore()
     agent = MagicMock(spec=DataAnalysisAgent)
 
-    def fake_analysis(user_query: str, session_id: str):
+    def fake_analysis(
+        user_query: str,
+        session_id: str,
+        conversation_history: list | None = None,
+    ):
         return {
             "session_id": session_id,
             "conversation_history": [
@@ -48,7 +52,7 @@ def test_analyze_query_updates_history_and_count():
     session_id = manager.start_session()
 
     result = manager.analyze_query("hello", session_id)
-    agent.analyze.assert_called_once_with("hello", session_id)
+    agent.analyze.assert_called_once_with("hello", session_id, [])
 
     session = store.get_session(session_id)
     assert session.analysis_count == 1
