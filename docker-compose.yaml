@@ -1,0 +1,9 @@
+version: '3.8'
+services:
+  app:
+    build: .
+    environment:
+      AWS_REGION: ${AWS_REGION}
+      GEMINI_SECRET_NAME: ${GEMINI_SECRET_NAME}
+      LANGCHAIN_SECRET_NAME: ${LANGCHAIN_SECRET_NAME}
+    command: ["python", "main.py"]

@@ -1,5 +1,6 @@
 """LangSmith tracing setup and custom instrumentation."""
 import os
+from infrastructure.secret_manager import get_env_or_secret
 from typing import Optional, Dict, Any, Callable
 from contextlib import contextmanager
 from functools import wraps
@@ -24,7 +25,7 @@ class LangSmithTracer:
     def setup_tracing(self) -> None:
         """Setup LangSmith tracing configuration."""
         try:
-            api_key = os.getenv("LANGCHAIN_API_KEY")
+            api_key = get_env_or_secret("LANGCHAIN_API_KEY", "LANGCHAIN_SECRET_NAME")
             project = os.getenv("LANGCHAIN_PROJECT", "data-analysis-agent")
             endpoint = os.getenv("LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com")
             enable = os.getenv("LANGCHAIN_TRACING_V2", "true").lower() == "true"

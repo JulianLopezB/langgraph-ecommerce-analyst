@@ -1,5 +1,6 @@
 """Google Gemini implementation of :class:`LLMClient`."""
 import os
+from infrastructure.secret_manager import get_env_or_secret
 import time
 from dataclasses import dataclass
 from typing import Optional, Dict, Any
@@ -29,7 +30,7 @@ class GeminiClient(LLMClient):
     
     def __init__(self, api_key: Optional[str] = None):
         """Initialize Gemini service."""
-        self.api_key = api_key or os.getenv("GEMINI_API_KEY")
+        self.api_key = api_key or get_env_or_secret("GEMINI_API_KEY", "GEMINI_SECRET_NAME")
         if not self.api_key:
             raise ValueError("Gemini API key not provided")
         
