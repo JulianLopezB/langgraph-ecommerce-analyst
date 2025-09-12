@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from infrastructure.config import get_config
-from tracing import setup_otel_tracing
 
 
 def _create_config():
@@ -44,7 +43,6 @@ def _bind_services(config):
 def create_analysis_controller():
     """Create a fully wired :class:`AnalysisController`."""
     config = _create_config()
-    setup_otel_tracing()
     _bind_services(config)
 
     from workflow import AnalysisWorkflow
