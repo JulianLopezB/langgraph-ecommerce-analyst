@@ -129,6 +129,7 @@ def test_secure_executor():
     executor = SecureExecutor(limits)
     # Avoid importing heavy optional libraries during tests
     executor._create_safe_globals = lambda: {"__builtins__": {"print": print}}
+    executor._set_resource_limits = lambda: None
     code = "print('hi')\nanalysis_results={'x':1}"
     result = executor.execute_code(code)
     assert result.status == ExecutionStatus.SUCCESS
@@ -136,17 +137,58 @@ def test_secure_executor():
     assert 'hi' in result.stdout
 
 
-def test_secure_executor_timeout():
-    limits = ExecutionLimits(max_execution_time=1, max_memory_mb=256, max_output_size_mb=1)
+def _minimal_executor(limits: ExecutionLimits) -> SecureExecutor:
+    """Create a SecureExecutor with minimal builtins for testing."""
     executor = SecureExecutor(limits)
+    safe_builtins = {
+        'print': print,
+        'range': range,
+        'len': len,
+        'int': int,
+        'float': float,
+        'list': list,
+        'dict': dict,
+        'set': set,
+        'bool': bool,
+    }
+    executor._create_safe_globals = lambda: {"__builtins__": safe_builtins}
     executor._set_resource_limits = lambda: None
-    executor._create_safe_globals = lambda: {"__builtins__": {"print": print}}
+    return executor
+
+
+def test_secure_executor_timeout():
+    limits = ExecutionLimits(max_execution_time=1, max_memory_mb=512, max_output_size_mb=1)
+    executor = _minimal_executor(limits)
     code = "while True:\n    pass"
     result = executor.execute_code(code)
     assert result.status == ExecutionStatus.TIMEOUT
 
 
 def test_secure_executor_memory_limit():
+    limits = ExecutionLimits(max_execution_time=5, max_memory_mb=256, max_output_size_mb=1)
+    executor = _minimal_executor(limits)
+    code = "x = [0] * (10**10)"  # Attempt to allocate huge memory
+    result = executor.execute_code(code)
+    assert result.status == ExecutionStatus.FAILED
+    assert 'memory limit' in (result.error_message or '').lower()
+
+
+def test_secure_executor_zero_division():
+    limits = ExecutionLimits(max_execution_time=5, max_memory_mb=512, max_output_size_mb=1)
+    executor = _minimal_executor(limits)
+    code = "1/0"
+    result = executor.execute_code(code)
+    assert result.status == ExecutionStatus.FAILED
+    assert 'ZeroDivisionError' in result.stderr
+
+
+def test_secure_executor_import_blocked():
+    limits = ExecutionLimits(max_execution_time=5, max_memory_mb=512, max_output_size_mb=1)
+    executor = _minimal_executor(limits)
+    code = "__import__('os')"
+    result = executor.execute_code(code)
+    assert result.status == ExecutionStatus.FAILED
+    assert '__import__' in (result.error_message or '')
     limits = ExecutionLimits(max_execution_time=5, max_memory_mb=50, max_output_size_mb=1)
     executor = SecureExecutor(limits)
     executor._set_resource_limits = lambda: None
