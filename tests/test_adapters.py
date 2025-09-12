@@ -102,3 +102,35 @@ def test_secure_executor():
     assert result.status == ExecutionStatus.SUCCESS
     assert result.output_data == {'x':1}
     assert 'hi' in result.stdout
+
+
+def test_secure_executor_timeout():
+    limits = ExecutionLimits(max_execution_time=1, max_memory_mb=256, max_output_size_mb=1)
+    executor = SecureExecutor(limits)
+    executor._set_resource_limits = lambda: None
+    executor._create_safe_globals = lambda: {"__builtins__": {"print": print}}
+    code = "while True:\n    pass"
+    result = executor.execute_code(code)
+    assert result.status == ExecutionStatus.TIMEOUT
+
+
+def test_secure_executor_memory_limit():
+    limits = ExecutionLimits(max_execution_time=5, max_memory_mb=50, max_output_size_mb=1)
+    executor = SecureExecutor(limits)
+    executor._set_resource_limits = lambda: None
+    executor._create_safe_globals = lambda: {"__builtins__": {"print": print, "MemoryError": MemoryError}}
+    code = "raise MemoryError('too big')"
+    result = executor.execute_code(code)
+    assert result.status == ExecutionStatus.FAILED
+    assert "memory limit" in result.error_message.lower()
+
+
+def test_secure_executor_exception():
+    limits = ExecutionLimits(max_execution_time=5, max_memory_mb=256, max_output_size_mb=1)
+    executor = SecureExecutor(limits)
+    executor._set_resource_limits = lambda: None
+    executor._create_safe_globals = lambda: {"__builtins__": {"print": print}}
+    code = "1/0"
+    result = executor.execute_code(code)
+    assert result.status == ExecutionStatus.FAILED
+    assert "zerodivisionerror" in result.stderr.lower()
