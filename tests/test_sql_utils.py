@@ -40,6 +40,11 @@ def test_removes_markdown_fences_and_semicolon():
         == expected
     )
 
+def test_removes_markdown_and_trailing_semicolon_and_adds_limit():
+    query = """```sql\nSELECT * FROM orders;\n```"""
+    expected = f"SELECT * FROM `{DATASET}.orders` LIMIT {MAX_RESULTS}"
+    assert clean_sql_query(query, DATASET, MAX_RESULTS) == expected
+
 
 def test_appends_limit_when_missing():
     query = "SELECT * FROM orders"
@@ -57,4 +62,3 @@ def test_does_not_duplicate_limit_clause():
         clean_sql_query(query, DATASET, MAX_RESULTS, add_dataset_prefix=False)
         == expected
     )
-
