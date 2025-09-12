@@ -15,6 +15,7 @@ from agents.sql_validation import (
 )
 import os
 from infrastructure.logging import get_logger
+from infrastructure.secret_manager import get_env_or_secret
 from infrastructure.llm import llm_client
 from tracing.langsmith_setup import tracer, trace_agent_operation
 
@@ -121,7 +122,7 @@ class SQLGenerationAgent:
 # Global SQL agent instance
 DEFAULT_DATASET_ID = os.getenv("BQ_DATASET_ID", "bigquery-public-data.thelook_ecommerce")
 DEFAULT_MAX_RESULTS = int(os.getenv("MAX_QUERY_RESULTS", "10000"))
-DEFAULT_API_KEY = os.getenv("GEMINI_API_KEY")
+DEFAULT_API_KEY = get_env_or_secret("GEMINI_API_KEY", "GEMINI_SECRET_NAME")
 
 sql_agent = SQLGenerationAgent(
     dataset_id=DEFAULT_DATASET_ID,

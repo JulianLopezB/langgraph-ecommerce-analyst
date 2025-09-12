@@ -30,99 +30,18 @@ An AI-powered data analysis agent that processes e-commerce data from Google Big
    pip install -r requirements.txt
    ```
 
-3. **Set up environment variables**:
-   Create a `.env` file in the project root:
+3. **Configure secrets**:
+   Store required API keys in AWS Secrets Manager and expose their names via environment variables:
    ```bash
-   # Google Gemini API Configuration
-   GEMINI_API_KEY=your_gemini_api_key_here
-   
-   # Google Cloud Configuration (optional)
-   GOOGLE_CLOUD_PROJECT=your_gcp_project_id
-   
-   # BigQuery Configuration (optional)
-   BQ_DATASET_ID=bigquery-public-data.thelook_ecommerce
-
-   # Deployment Environment (optional: development|production)
-   APP_ENV=development
-   
-   # LangSmith Tracing (optional - for debugging)
-   LANGSMITH_API_KEY=your_langsmith_api_key_here
+   export GEMINI_SECRET_NAME=GEMINI_API_KEY
+   export LANGCHAIN_SECRET_NAME=LANGCHAIN_API_KEY
+   export AWS_REGION=your_aws_region
    ```
 
 4. **Set up Google Cloud authentication** (if using your own project):
    ```bash
    gcloud auth application-default login
    ```
-
-## 🚀 Quick Start
-
-1. **Start the interactive CLI**:
-   ```bash
-   python main.py
-   ```
-
-2. **Ask questions about your data**:
-   ```
-   🔍 Your question: Segment our customers using RFM analysis
-   🔍 Your question: What are the sales trends for the last quarter?
-   🔍 Your question: Forecast sales for the next 3 months
-   ```
-
-## 📊 Example Queries
-
-### Customer Analysis
-- "Segment our customers using RFM analysis and identify the most valuable segment"
-- "Analyze customer churn patterns and retention rates"
-- "What is the customer lifetime value by segment?"
-
-### Sales Analysis
-- "Show me sales trends for the last 6 months"
-- "Forecast revenue for the next quarter"
-- "Which products have the highest revenue growth?"
-
-### Product Analysis
-- "What are our top-performing products by revenue?"
-- "Analyze product category performance"
-- "What products should we recommend to customer ID 12345?"
-
-### Advanced Analytics
-- "Perform cohort analysis on customer behavior"
-- "Detect anomalies in our sales data"
-- "Build a customer churn prediction model"
-
-## 🏗️ Architecture
-
-The system follows a modular, layered architecture:
-
-### Core Components
-
-- **LangGraph Agent**: Orchestrates the analysis workflow
-- **Query Understanding**: Classifies user intent and extracts requirements
-- **SQL Generator**: Creates optimized BigQuery queries
-- **Code Generator**: Generates Python analysis code dynamically
-- **Secure Executor**: Safely executes code with resource limits
-- **Session Manager**: Handles conversation history and context
-- **AnalysisController**: Application layer facade reused by interfaces
-
-### Data Flow
-
-1. **User Input** → Query Understanding
-2. **Intent Classification** → SQL Generation
-3. **Query Execution** → Data Retrieval
-4. **Python Code Generation** → Validation
-5. **Secure Execution** → Result Synthesis
-6. **Insights Generation** → User Output
-
-## 🔧 Configuration
-
-### Execution Limits
-```python
-# In config.py
-execution_limits:
-  max_execution_time: 300  # seconds
-  max_memory_mb: 1024     # MB
-  max_output_size_mb: 100 # MB
-```
 
 ### Security Settings
 ```python
@@ -175,6 +94,12 @@ from `application.controllers`. The controller exposes the same
 `start_session`, `analyze_query`, and `get_session_history` methods used by
 the CLI, enabling web services to reuse the `AnalysisWorkflow` without
 duplicating business logic.
+
+## 🔐 Secret Management
+
+- Secrets are stored in AWS Secrets Manager.
+- Rotate API keys every 90 days or upon potential exposure.
+- Grant application IAM roles only the `secretsmanager:GetSecretValue` permission for required secrets.
 
 ## 🔍 Debugging
 

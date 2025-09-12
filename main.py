@@ -39,12 +39,9 @@ def check_environment(config) -> None:
         for var in missing_vars:
             print(f"   - {var}")
         print("\\n📝 Setup Instructions:")
-        print("1. Create a .env file in the project root")
-        print("2. Add your Gemini API key:")
-        for var in missing_vars:
-            print(f"   {var}=your_api_key_here")
-        print("\\n🔗 Get your Gemini API key from: https://makersuite.google.com/app/apikey")
-        print("\\n🚀 Run 'python3 setup_environment.py' for guided setup")
+        print("1. Store API keys in AWS Secrets Manager (e.g., secret name 'GEMINI_API_KEY')")
+        print("2. Ensure the runtime IAM role has permissions to read the secrets")
+        print("\n🔗 Get your Gemini API key from: https://makersuite.google.com/app/apikey")
         sys.exit(1)
     
     # Check BigQuery configuration

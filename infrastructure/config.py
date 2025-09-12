@@ -2,10 +2,7 @@
 import os
 from typing import Optional
 from pydantic import BaseModel, Field
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
+from .secret_manager import get_env_or_secret
 
 # Centralized constants
 DEFAULT_DATASET_ID = "bigquery-public-data.thelook_ecommerce"
@@ -81,10 +78,10 @@ class SystemConfig(BaseModel):
         if not isinstance(api_config, dict):
             api_config = api_config.dict() if hasattr(api_config, 'dict') else {}
         
-        api_config.setdefault('gemini_api_key', os.getenv('GEMINI_API_KEY'))
+        api_config.setdefault('gemini_api_key', get_env_or_secret('GEMINI_API_KEY', 'GEMINI_SECRET_NAME'))
         api_config.setdefault('bigquery_project_id', os.getenv('GOOGLE_CLOUD_PROJECT'))
         api_config.setdefault('dataset_id', os.getenv('BQ_DATASET_ID', DEFAULT_DATASET_ID))
-        api_config.setdefault('langsmith_api_key', os.getenv('LANGCHAIN_API_KEY'))
+        api_config.setdefault('langsmith_api_key', get_env_or_secret('LANGCHAIN_API_KEY', 'LANGCHAIN_SECRET_NAME'))
         api_config.setdefault('langsmith_project', os.getenv('LANGCHAIN_PROJECT', 'data-analysis-agent'))
         api_config.setdefault('enable_tracing', os.getenv('LANGCHAIN_TRACING_V2', 'true').lower() == 'true')
         
