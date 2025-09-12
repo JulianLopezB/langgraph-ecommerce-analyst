@@ -4,7 +4,8 @@ WORKDIR /app
 
 # Install system build dependencies for Prophet/cmdstanpy
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
+    g++ \
+    make \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
