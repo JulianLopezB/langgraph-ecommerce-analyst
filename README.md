@@ -68,6 +68,23 @@ An AI-powered data analysis agent that processes e-commerce data from Google Big
    🔍 Your question: Forecast sales for the next 3 months
    ```
 
+## 🐳 Docker
+
+The Docker image installs system build tools and pre-builds CmdStan so Prophet-based
+forecasting works out of the box.
+
+Build the image:
+
+```bash
+ docker build -t langgraph-ecommerce-analyst .
+```
+
+Run the container:
+
+```bash
+ docker run --rm -it -e GEMINI_API_KEY=your_gemini_api_key_here langgraph-ecommerce-analyst
+```
+
 ## 📊 Example Queries
 
 ### Customer Analysis

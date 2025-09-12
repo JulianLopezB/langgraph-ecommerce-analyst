@@ -17,10 +17,12 @@ jobs:
           cache: 'pip'
           cache-dependency-path: requirements.txt
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
       - name: Lint
         run: |
           flake8 application/ domain/ infrastructure/ interface/ tests/ utils/ workflow/
           black --check application/ domain/ infrastructure/ interface/ tests/ utils/ workflow/
       - name: Test
-        run: pytest tests/
+        run: |
+          pytest tests/
