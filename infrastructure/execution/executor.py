@@ -1,8 +1,8 @@
 """Secure execution environment implementation.
 
-Dynamic imports are disabled; the ``__import__`` builtin is intentionally
-omitted from the execution environment. Any additional libraries must be
-preloaded into the sandbox before execution.
+Dynamic imports are restricted via a whitelisted ``__import__`` implementation
+that only allows approved scientific/analytics libraries. This enables common
+``import ...`` statements in generated code while maintaining sandbox safety.
 """
 import io
 import time
@@ -11,6 +11,7 @@ import resource
 import signal
 from typing import Any, Dict
 from contextlib import redirect_stdout, redirect_stderr
+import builtins
 
 from infrastructure.config import config
 from domain.entities import ExecutionStatus, ExecutionResults
@@ -153,17 +154,36 @@ class SecureExecutor(CodeExecutor):
     def _create_safe_globals(self) -> Dict[str, Any]:
         """Create a safe global environment for code execution."""
         # Start with minimal builtins
-        safe_builtins = {
+        allowed_builtin_names = {
             'len', 'str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set',
             'min', 'max', 'sum', 'abs', 'round', 'sorted', 'enumerate', 'zip',
             'range', 'print', 'type', 'isinstance', 'any', 'all',
             'Exception', 'ValueError', 'TypeError', 'KeyError', 'IndexError', 'AttributeError'
         }
-        # Note: `__import__` is intentionally excluded to block runtime imports.
-        
-        safe_globals = {
-            '__builtins__': {name: __builtins__[name] for name in safe_builtins if name in __builtins__}
+
+        # Whitelisted top-level modules that code is allowed to import
+        allowed_top_level_modules = {
+            'pandas', 'numpy', 'matplotlib', 'seaborn', 'plotly',
+            'sklearn', 'scipy', 'statsmodels', 'prophet',
+            'datetime', 'math', 'statistics', 'json', 're', 'warnings'
         }
+
+        def restricted_import(name, globals=None, locals=None, fromlist=(), level=0):
+            """Allow imports only from an approved whitelist.
+
+            Supports both ``import x`` and ``from x.y import z`` by checking
+            the top-level package in the requested module path.
+            """
+            top = name.split('.')[0]
+            if top not in allowed_top_level_modules:
+                raise ImportError(f"Import disabled for module: {name}")
+            return builtins.__import__(name, globals, locals, fromlist, level)
+
+        safe_builtins = {name: getattr(builtins, name) for name in allowed_builtin_names if hasattr(builtins, name)}
+        # Provide restricted __import__ for safe, whitelisted imports
+        safe_builtins['__import__'] = restricted_import
+
+        safe_globals = {'__builtins__': safe_builtins}
         
         # Add allowed modules
         try:
@@ -252,5 +272,4 @@ class SecureExecutor(CodeExecutor):
         except Exception as e:
             logger.warning(f"Could not get memory usage: {e}")
             return 0.0
-
 
