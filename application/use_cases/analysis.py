@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol, List
 
-from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from pandas import DataFrame
 
@@ -62,8 +62,8 @@ def run_analysis(prompt: str, state: SessionState) -> Any:
         assistant_msg = AIMessage(content=str(response))
         result_content = response
 
-    # Update conversation history
-    state.messages.append(assistant_msg)
+    # Update conversation history with user prompt and assistant reply
+    state.messages.extend([HumanMessage(content=prompt), assistant_msg])
 
     # Store structured results if provided
     if hasattr(state, "update_result") and isinstance(
