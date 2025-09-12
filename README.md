@@ -70,6 +70,9 @@ An AI-powered data analysis agent that processes e-commerce data from Google Big
 
 ## 🐳 Docker
 
+The Docker image installs system build tools and pre-builds CmdStan so Prophet-based
+forecasting works out of the box.
+
 Build the image:
 
 ```bash
