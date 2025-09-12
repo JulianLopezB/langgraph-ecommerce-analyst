@@ -1,4 +1,5 @@
 """Centralized logging configuration for the Data Analysis Agent."""
+import json
 import logging
 import sys
 from pathlib import Path
@@ -10,14 +11,27 @@ from .config import LoggingConfig
 _logging_configured = False
 
 
-def setup_logging(logging_config: Optional[LoggingConfig] = None, debug: bool = False, log_file: Optional[str] = None) -> None:
-    """Setup centralized logging configuration.
+class JsonFormatter(logging.Formatter):
+    """Simple JSON formatter for structured logs."""
 
-    Args:
-        logging_config: Configuration settings for logging. If None, defaults are used.
-        debug: Enable debug level logging (overrides config)
-        log_file: Optional log file path (overrides config)
-    """
+    def format(self, record: logging.LogRecord) -> str:  # type: ignore[override]
+        log_record = {
+            "time": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "name": record.name,
+            "message": record.getMessage(),
+        }
+        if record.exc_info:
+            log_record["exc_info"] = self.formatException(record.exc_info)
+        return json.dumps(log_record)
+
+
+def setup_logging(
+    logging_config: Optional[LoggingConfig] = None,
+    debug: bool = False,
+    log_file: Optional[str] = None,
+) -> None:
+    """Setup centralized logging configuration."""
     global _logging_configured
 
     if _logging_configured:
@@ -47,13 +61,17 @@ def setup_logging(logging_config: Optional[LoggingConfig] = None, debug: bool = 
     if not handlers:
         handlers.append(logging.StreamHandler(sys.stdout))
 
+    formatter: logging.Formatter
+    if logging_config.json_format:
+        formatter = JsonFormatter()
+    else:
+        formatter = logging.Formatter(log_format)
+
+    for handler in handlers:
+        handler.setFormatter(formatter)
+
     # Configure logging with force=True to override any existing config
-    logging.basicConfig(
-        level=log_level,
-        format=log_format,
-        handlers=handlers,
-        force=True  # This is key - forces reconfiguration
-    )
+    logging.basicConfig(level=log_level, handlers=handlers, force=True)
 
     # Set specific loggers
     logging.getLogger('urllib3').setLevel(logging.WARNING)

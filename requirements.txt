@@ -40,3 +40,9 @@ prompt_toolkit>=3.0.0
 
 # Testing and Development
 pytest>=7.4.0
+
+# Observability
+opentelemetry-api>=1.23.0
+opentelemetry-sdk>=1.23.0
+opentelemetry-exporter-jaeger>=1.23.0
+opentelemetry-exporter-otlp>=1.23.0

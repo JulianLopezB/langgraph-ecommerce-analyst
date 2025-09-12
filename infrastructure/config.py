@@ -65,6 +65,7 @@ class LoggingConfig(BaseModel):
     file_path: str = Field(default="logs/agent.log", description="Main log file path")
     console_output: bool = Field(default=False, description="Enable console output")
     file_output: bool = Field(default=True, description="Enable file output")
+    json_format: bool = Field(default=True, description="Enable structured JSON logging")
 
 
 class SystemConfig(BaseModel):
