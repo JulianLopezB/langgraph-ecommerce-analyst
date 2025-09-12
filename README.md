@@ -62,27 +62,10 @@ An AI-powered data analysis agent that processes e-commerce data from Google Big
    ```
 
 2. **Ask questions about your data**:
-    ```
-    🔍 Your question: Segment our customers using RFM analysis
-    🔍 Your question: What are the sales trends for the last quarter?
-    🔍 Your question: Forecast sales for the next 3 months
-    ```
-
-## 🐳 Docker Compose
-
-Run the application alongside its dependencies using Docker Compose.
-
-1. Ensure a `.env` file exists in the project root with the required configuration values.
-2. Build and start all services:
-   ```bash
-   docker-compose up --build
    ```
-   This launches the application, a PostgreSQL database, and a RabbitMQ broker on an isolated
-   `app-network`, persists data in the `db_data` and `rabbitmq_data` volumes, and allocates a TTY
-   for the app service so you can use the interactive CLI directly.
-3. Stop the services when finished:
-   ```bash
-   docker-compose down
+   🔍 Your question: Segment our customers using RFM analysis
+   🔍 Your question: What are the sales trends for the last quarter?
+   🔍 Your question: Forecast sales for the next 3 months
    ```
 
 ## 📊 Example Queries
