@@ -14,6 +14,7 @@ sys.path.insert(0, str(project_root))
 from interface.cli.main import main as cli_main  # noqa: E402
 from infrastructure.config import get_config  # noqa: E402
 from infrastructure.logging import get_logger
+from tracing import setup_otel_tracing
 
 
 logger = get_logger(__name__)
@@ -61,6 +62,9 @@ def main() -> None:
 
         # Setup logging first
         setup_logging(config, debug=False)
+
+        # Initialize OpenTelemetry tracing
+        setup_otel_tracing()
 
         # Check environment
         check_environment(config)

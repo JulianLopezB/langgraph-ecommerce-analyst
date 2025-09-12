@@ -47,6 +47,12 @@ An AI-powered data analysis agent that processes e-commerce data from Google Big
    
    # LangSmith Tracing (optional - for debugging)
    LANGSMITH_API_KEY=your_langsmith_api_key_here
+
+   # OpenTelemetry (optional - tracing backend configuration)
+   OTEL_EXPORTER_JAEGER_AGENT_HOST=localhost
+   OTEL_EXPORTER_JAEGER_AGENT_PORT=6831
+   # Optional OTLP endpoint (e.g., OpenSearch or collector)
+   OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318/v1/traces
    ```
 
 4. **Set up Google Cloud authentication** (if using your own project):
@@ -209,6 +215,22 @@ from `application.controllers`. The controller exposes the same
 `start_session`, `analyze_query`, and `get_session_history` methods used by
 the CLI, enabling web services to reuse the `AnalysisWorkflow` without
 duplicating business logic.
+
+## 📈 Observability
+
+The agent emits OpenTelemetry traces and JSON-formatted logs.
+
+### Tracing
+
+1. Ensure a Jaeger instance or OpenTelemetry collector is running.
+2. Set `OTEL_EXPORTER_JAEGER_AGENT_HOST` and related environment variables.
+3. Start the application and open [http://localhost:16686](http://localhost:16686) to explore traces in Jaeger.
+4. If using an OTLP endpoint (e.g., OpenSearch), view traces using your collector's dashboard.
+
+### Logs
+
+- Structured logs are written to `logs/agent.log` in JSON format.
+- Forward this file to your log aggregator (e.g., OpenSearch) for centralized analysis.
 
 ## 🔍 Debugging
 

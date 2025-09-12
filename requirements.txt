@@ -42,3 +42,9 @@ prompt_toolkit>=3.0.0
 pytest>=7.4.0
 flake8>=7.0.0
 black>=24.0.0
+
+# Observability
+opentelemetry-api>=1.23.0
+opentelemetry-sdk>=1.23.0
+opentelemetry-exporter-jaeger>=1.23.0
+opentelemetry-exporter-otlp>=1.23.0
