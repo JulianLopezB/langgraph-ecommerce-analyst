@@ -1,6 +1,8 @@
 """Query understanding node."""
 from datetime import datetime
 from typing import Dict, Any
+import re
+import pandas as pd
 
 from agents.process_classifier import process_classifier
 from infrastructure.persistence import data_repository
@@ -50,6 +52,40 @@ def _build_contextual_prompt(
     return "\n".join(recent)
 
 
+def _resolve_context(state: AnalysisState) -> None:
+    """Resolve references to previous artifacts in the user query.
+
+    This allows follow-up questions like "the result" to be replaced with the
+    most recent artifact key and optionally captures explicit naming requests.
+    """
+
+    query = state.get("user_query", "")
+    artifacts = state.get("analysis_outputs", {})
+
+    # Check for explicit naming e.g. "as my_result"
+    name_match = re.search(r"\bas\s+(?P<name>[A-Za-z_]\w*)", query, re.IGNORECASE)
+    if name_match:
+        state["requested_artifact_name"] = name_match.group("name")
+        query = (query[: name_match.start()].strip() + " " + query[name_match.end() :].strip()).strip()
+
+    if artifacts:
+        lower_query = query.lower()
+        if "the result" in lower_query:
+            last_key = None
+            for key in reversed(list(artifacts.keys())):
+                if isinstance(artifacts[key], pd.DataFrame):
+                    last_key = key
+                    break
+            if last_key:
+                query = re.sub(r"\bthe result\b", last_key, query, flags=re.IGNORECASE)
+                referenced = artifacts.get(last_key)
+                if referenced is not None:
+                    state["raw_dataset"] = referenced
+                    state["active_dataframe"] = last_key
+
+    state["user_query"] = query
+
+
 def understand_query(state: AnalysisState) -> AnalysisState:
     """Parse and understand user intent using AI agents."""
     with trace_agent_operation(
@@ -59,6 +95,8 @@ def understand_query(state: AnalysisState) -> AnalysisState:
     ):
         logger.info("Understanding user query with AI agents")
         try:
+            _resolve_context(state)
+
             schema_info = _get_schema_info()
             state["data_schema"] = schema_info
 
@@ -107,11 +145,12 @@ def understand_query(state: AnalysisState) -> AnalysisState:
             state["conversation_history"].append(message)
 
             if process_result.confidence > 0.7:
-                if process_result.process_type == ProcessType.SQL:
-                    state["next_step"] = "generate_sql"
-                elif process_result.process_type == ProcessType.PYTHON:
-                    state["next_step"] = "generate_sql"
-                elif process_result.process_type == ProcessType.VISUALIZATION:
+                if (
+                    state.get("raw_dataset") is not None
+                    and process_result.process_type in {ProcessType.PYTHON, ProcessType.VISUALIZATION}
+                ):
+                    state["next_step"] = "generate_python_code"
+                else:
                     state["next_step"] = "generate_sql"
             else:
                 state["next_step"] = "clarify_query"

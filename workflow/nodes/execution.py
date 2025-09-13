@@ -24,6 +24,12 @@ def execute_sql(state: AnalysisState) -> AnalysisState:
         df = data_repo.execute_query(state["sql_query"])
         state["raw_dataset"] = df
 
+        # Store dataset as an artifact for future reference
+        existing = [k for k in state["analysis_outputs"].keys() if k.startswith("result_")]
+        artifact_key = state.get("requested_artifact_name") or f"result_{len(existing) + 1}"
+        state["analysis_outputs"][artifact_key] = df
+        state["active_dataframe"] = artifact_key
+
         data_info = {
             "columns": df.columns.tolist(),
             "dtypes": df.dtypes.to_dict(),
@@ -36,7 +42,10 @@ def execute_sql(state: AnalysisState) -> AnalysisState:
         message = ConversationMessage(
             timestamp=datetime.now(),
             role="assistant",
-            content=f"Retrieved {len(df)} rows and {len(df.columns)} columns from BigQuery",
+            content=(
+                f"Retrieved {len(df)} rows and {len(df.columns)} columns from BigQuery. "
+                f"Stored as {artifact_key}"
+            ),
             message_type="result",
         )
         state["conversation_history"].append(message)
@@ -131,6 +140,7 @@ def generate_python_code(state: AnalysisState) -> AnalysisState:
             "data_characteristics": data_characteristics,
             "data_understanding": state["analysis_outputs"].get("data_understanding", {}),
             "sql_metadata": state["analysis_outputs"].get("sql_metadata", {}),
+            "dataframe_name": state.get("active_dataframe", "df"),
         }
 
         python_code = llm_service.generate_adaptive_python_code(analysis_context)
@@ -146,6 +156,7 @@ def generate_python_code(state: AnalysisState) -> AnalysisState:
                     "original_query": state["user_query"],
                     "sql_query": state.get("sql_query", ""),
                     "data_characteristics": data_characteristics,
+                    "dataframe_name": state.get("active_dataframe", "df"),
                 },
             )
             state["generated_code"] = generated_code
@@ -157,6 +168,7 @@ def generate_python_code(state: AnalysisState) -> AnalysisState:
                 "original_query": state["user_query"],
                 "sql_query": state.get("sql_query", ""),
                 "data_characteristics": data_characteristics,
+                "dataframe_name": state.get("active_dataframe", "df"),
             }
 
         state["next_step"] = "validate_code"
@@ -218,7 +230,10 @@ def execute_code(state: AnalysisState) -> AnalysisState:
         if not state["generated_code"] or not state["generated_code"].validation_passed:
             raise ValueError("Invalid or unvalidated code")
 
-        context = {"df": state["raw_dataset"]}
+        df_name = state.get("active_dataframe", "df")
+        context = {df_name: state["raw_dataset"]}
+        if df_name != "df":
+            context["df"] = state["raw_dataset"]
 
         execution_results = secure_executor.execute_code(
             state["generated_code"].code_content,
