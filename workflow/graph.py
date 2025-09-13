@@ -1,5 +1,6 @@
 """LangGraph workflow orchestration for the data analysis agent."""
 from typing import Dict, Any
+import pandas as pd
 from datetime import datetime
 import uuid
 
@@ -7,7 +8,7 @@ from langgraph.graph import StateGraph, END
 
 from workflow.state import AnalysisState, create_initial_state
 from domain.entities import ConversationMessage, AnalysisSession
-from domain.services import SessionStore
+from domain.services import SessionStore, ArtifactStore
 from workflow.nodes import (
     understand_query,
     generate_sql,
@@ -19,6 +20,7 @@ from workflow.nodes import (
     handle_error,
 )
 from infrastructure.persistence.in_memory_session_store import InMemorySessionStore
+from infrastructure.persistence import FilesystemArtifactStore
 from infrastructure.logging import get_logger
 
 logger = get_logger(__name__)
@@ -236,10 +238,12 @@ class SessionManager:
         self,
         session_store: SessionStore | None = None,
         agent: DataAnalysisAgent | None = None,
+        artifact_store: ArtifactStore | None = None,
     ) -> None:
         """Initialize session manager."""
         self.session_store = session_store or InMemorySessionStore()
         self.agent = agent or DataAnalysisAgent()
+        self.artifact_store = artifact_store or FilesystemArtifactStore()
 
     def start_session(self, session_id: str | None = None) -> str:
         """Start a new analysis session."""
@@ -283,8 +287,15 @@ class SessionManager:
                 )
             session.conversation_history = new_history
             session.analysis_count += 1
-            # Merge any new analysis outputs back into session artifacts
-            session.artifacts.update(results.get("analysis_outputs", {}))
+            processed = {}
+            for name, value in results.get("analysis_outputs", {}).items():
+                if isinstance(value, pd.DataFrame):
+                    processed[name] = self.artifact_store.save_dataframe(value, name)
+                else:
+                    processed[name] = value
+            session.artifacts.update(processed)
+            # Ensure cleanup policies are applied
+            self.artifact_store.cleanup()
             self.session_store.save_session(session)
 
         return results
