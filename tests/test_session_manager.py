@@ -17,6 +17,7 @@ def create_manager():
         user_query: str,
         session_id: str,
         conversation_history: list | None = None,
+        artifacts: dict | None = None,
     ):
         return {
             "session_id": session_id,
@@ -45,6 +46,7 @@ def test_start_session_initializes_metadata():
     assert isinstance(session.created_at, datetime)
     assert session.analysis_count == 0
     assert session.conversation_history == []
+    assert session.artifacts == {}
 
 
 def test_analyze_query_updates_history_and_count():
@@ -52,12 +54,30 @@ def test_analyze_query_updates_history_and_count():
     session_id = manager.start_session()
 
     result = manager.analyze_query("hello", session_id)
-    agent.analyze.assert_called_once_with("hello", session_id, [])
+    agent.analyze.assert_called_once_with("hello", session_id, [], {})
 
     session = store.get_session(session_id)
     assert session.analysis_count == 1
     assert len(session.conversation_history) == 1
     assert result["conversation_history"][0]["content"] == "Echo: hello"
+
+
+def test_analyze_query_merges_artifacts():
+    manager, store, agent = create_manager()
+    session_id = manager.start_session()
+
+    def analysis_with_artifacts(user_query: str, session_id: str, conversation_history=None, artifacts=None):
+        return {
+            "session_id": session_id,
+            "conversation_history": [],
+            "analysis_outputs": {"df": "data"},
+        }
+
+    agent.analyze.side_effect = analysis_with_artifacts
+    manager.analyze_query("hi", session_id)
+
+    session = store.get_session(session_id)
+    assert session.artifacts == {"df": "data"}
 
 
 def test_get_session_history_returns_expected_structure():
