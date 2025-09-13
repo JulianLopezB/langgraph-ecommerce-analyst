@@ -265,7 +265,22 @@ class SessionManager:
             session = self.session_store.get_session(session_id)
 
         history = session.conversation_history if session else []
-        artifacts = session.artifacts if session else {}
+        artifacts = {}
+        if session:
+            for name, artifact in session.artifacts.items():
+                if (
+                    isinstance(artifact, dict)
+                    and artifact.get("type") == "dataframe"
+                    and "path" in artifact
+                ):
+                    try:
+                        artifacts[name] = self.artifact_store.load_dataframe(
+                            artifact["path"]
+                        )
+                    except Exception:
+                        artifacts[name] = artifact
+                else:
+                    artifacts[name] = artifact
 
         # Perform analysis with existing conversation context and artifacts
         results = self.agent.analyze(user_query, session_id, history, artifacts)

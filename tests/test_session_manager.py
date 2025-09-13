@@ -87,6 +87,25 @@ def test_analyze_query_merges_artifacts(tmp_path):
     pd.testing.assert_frame_equal(loaded, df)
 
 
+def test_analyze_query_rehydrates_saved_artifacts(tmp_path):
+    manager, store, agent, artifact_store = create_manager(tmp_path)
+    session_id = manager.start_session()
+
+    df = pd.DataFrame({"a": [1, 2]})
+    meta = artifact_store.save_dataframe(df, "df")
+    session = store.get_session(session_id)
+    session.artifacts["df"] = meta
+    store.save_session(session)
+
+    def analysis_using_artifacts(user_query, session_id, conversation_history=None, artifacts=None):
+        assert isinstance(artifacts["df"], pd.DataFrame)
+        pd.testing.assert_frame_equal(artifacts["df"], df)
+        return {"session_id": session_id, "conversation_history": []}
+
+    agent.analyze.side_effect = analysis_using_artifacts
+    manager.analyze_query("reuse", session_id)
+
+
 def test_get_session_history_returns_expected_structure(tmp_path):
     manager, _, _, _ = create_manager(tmp_path)
     session_id = manager.start_session()
