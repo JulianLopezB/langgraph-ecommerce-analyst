@@ -30,6 +30,26 @@ def _get_schema_info() -> Dict[str, Any]:
         return {}
 
 
+def _build_contextual_prompt(
+    history: list[ConversationMessage], user_query: str, max_history: int = 1
+) -> str:
+    """Combine recent conversation history with the current user query.
+
+    Args:
+        history: Full conversation history.
+        user_query: Current user question.
+        max_history: Number of most recent messages to include.
+
+    Returns:
+        A single string containing recent context followed by the new query.
+    """
+    recent: list[str] = []
+    for message in history[-max_history:]:
+        recent.append(f"{message.role.capitalize()}: {message.content}")
+    recent.append(f"User: {user_query}")
+    return "\n".join(recent)
+
+
 def understand_query(state: AnalysisState) -> AnalysisState:
     """Parse and understand user intent using AI agents."""
     with trace_agent_operation(
@@ -42,8 +62,13 @@ def understand_query(state: AnalysisState) -> AnalysisState:
             schema_info = _get_schema_info()
             state["data_schema"] = schema_info
 
+            contextual_prompt = _build_contextual_prompt(
+                state.get("conversation_history", []), state["user_query"]
+            )
+            state["contextual_prompt"] = contextual_prompt
+
             process_result = process_classifier.classify(
-                state["user_query"], schema_info
+                contextual_prompt, schema_info
             )
 
             state["process_type"] = process_result.process_type
@@ -65,7 +90,7 @@ def understand_query(state: AnalysisState) -> AnalysisState:
                     "process_type": process_result.process_type.value,
                     "confidence_score": process_result.confidence,
                     "needs_python_analysis": state["needs_python_analysis"],
-                    "query_length": len(state["user_query"]),
+                    "query_length": len(contextual_prompt),
                     "complexity_level": process_result.complexity_level,
                 }
             )

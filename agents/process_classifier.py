@@ -1,7 +1,7 @@
 """AI-driven process type classification agent."""
 import json
 from dataclasses import dataclass, field
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Union
 
 from domain.entities import ProcessType
 from infrastructure.logging import get_logger
@@ -30,17 +30,29 @@ class ProcessTypeClassifier:
         self.llm_service = llm_client
         logger.info("ProcessTypeClassifier initialized")
     
-    def classify(self, query: str, schema_info: Dict[str, Any]) -> ProcessTypeResult:
+    def classify(
+        self,
+        query_or_messages: Union[str, List[Dict[str, str]]],
+        schema_info: Dict[str, Any],
+    ) -> ProcessTypeResult:
         """
         Classify the optimal process type using AI analysis.
-        
+
         Args:
-            query: User's natural language query
+            query_or_messages: User query or list of chat messages providing context
             schema_info: Available table schemas and metadata
-            
+
         Returns:
             ProcessTypeResult with classification and metadata
         """
+        if isinstance(query_or_messages, list):
+            query = "\n".join(
+                f"{m.get('role', 'user').capitalize()}: {m.get('content', '')}"
+                for m in query_or_messages
+            )
+        else:
+            query = query_or_messages
+
         with trace_agent_operation(
             name="classify_process_type",
             query=query,

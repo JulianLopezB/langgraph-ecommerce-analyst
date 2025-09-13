@@ -25,8 +25,9 @@ def generate_sql(state: AnalysisState) -> AnalysisState:
             suggested_tables=process_data["suggested_tables"],
         )
 
+        contextual_prompt = state.get("contextual_prompt", state["user_query"])
         data_understanding = schema_agent.understand_data(
-            state["user_query"],
+            contextual_prompt,
             state["data_schema"],
             state["process_type"],
         )
@@ -40,7 +41,7 @@ def generate_sql(state: AnalysisState) -> AnalysisState:
         }
 
         sql_result = sql_agent.generate_sql(
-            state["user_query"],
+            contextual_prompt,
             data_understanding,
             process_result,
         )
