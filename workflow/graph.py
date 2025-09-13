@@ -252,23 +252,25 @@ class SessionManager:
 
     def analyze_query(self, user_query: str, session_id: str | None = None) -> Dict[str, Any]:
         """Analyze a query within a session context."""
-        if session_id is None or self.session_store.get_session(session_id) is None:
+        # Get or create session before analysis
+        session = self.session_store.get_session(session_id) if session_id else None
+        if session is None:
             session_id = self.start_session(session_id)
+            session = self.session_store.get_session(session_id)
 
-        session = self.session_store.get_session(session_id)
-        history = list(session.conversation_history) if session else []
+        history = session.conversation_history if session else []
 
-        # Perform analysis
+        # Perform analysis with existing conversation context
         results = self.agent.analyze(user_query, session_id, history)
 
         if session:
-            session.conversation_history = []
+            new_history: list[ConversationMessage] = []
             for msg in results.get("conversation_history", []):
                 try:
                     timestamp = datetime.fromisoformat(msg.get("timestamp", ""))
                 except Exception:
                     timestamp = datetime.now()
-                session.conversation_history.append(
+                new_history.append(
                     ConversationMessage(
                         timestamp=timestamp,
                         role=msg.get("role", ""),
@@ -276,6 +278,7 @@ class SessionManager:
                         message_type=msg.get("type", "text"),
                     )
                 )
+            session.conversation_history = new_history
             session.analysis_count += 1
             self.session_store.save_session(session)
 
