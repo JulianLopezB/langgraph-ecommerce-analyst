@@ -50,6 +50,7 @@ def create_initial_state(
     user_query: str,
     session_id: str,
     conversation_history: Optional[List[ConversationMessage]] = None,
+    artifacts: Optional[Dict[str, Any]] = None,
 ) -> AnalysisState:
     """Create initial state for a new analysis request."""
     return AnalysisState(
@@ -63,7 +64,7 @@ def create_initial_state(
         validation_results=None,
         needs_python_analysis=False,
         execution_results=None,
-        analysis_outputs={},
+        analysis_outputs=dict(artifacts) if artifacts else {},
         insights="",
         error_context={},
         session_id=session_id,

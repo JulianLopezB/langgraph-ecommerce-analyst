@@ -9,12 +9,12 @@ class SessionStore(ABC):
 
     @abstractmethod
     def save_session(self, session: AnalysisSession) -> None:
-        """Persist a session instance."""
+        """Persist a session instance, including any cached artifacts."""
         raise NotImplementedError
 
     @abstractmethod
     def get_session(self, session_id: str) -> Optional[AnalysisSession]:
-        """Retrieve a session by its identifier."""
+        """Retrieve a session by its identifier with all artifacts."""
         raise NotImplementedError
 
     @abstractmethod

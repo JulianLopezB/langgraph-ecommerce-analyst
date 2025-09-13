@@ -118,6 +118,7 @@ class DataAnalysisAgent:
         user_query: str,
         session_id: str = None,
         conversation_history: list[ConversationMessage] | None = None,
+        artifacts: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         """
         Perform data analysis based on user query.
@@ -126,6 +127,7 @@ class DataAnalysisAgent:
             user_query: Natural language query from user
             session_id: Optional session ID for tracking
             conversation_history: Prior conversation context
+            artifacts: Existing analysis outputs to seed the workflow
 
         Returns:
             Analysis results and conversation history
@@ -138,7 +140,7 @@ class DataAnalysisAgent:
         try:
             # Create initial state with any existing conversation history
             history = list(conversation_history) if conversation_history else None
-            initial_state = create_initial_state(user_query, session_id, history)
+            initial_state = create_initial_state(user_query, session_id, history, artifacts)
 
             # Record the new user message after loading existing history so
             # downstream nodes receive the full conversation context
@@ -259,9 +261,10 @@ class SessionManager:
             session = self.session_store.get_session(session_id)
 
         history = session.conversation_history if session else []
+        artifacts = session.artifacts if session else {}
 
-        # Perform analysis with existing conversation context
-        results = self.agent.analyze(user_query, session_id, history)
+        # Perform analysis with existing conversation context and artifacts
+        results = self.agent.analyze(user_query, session_id, history, artifacts)
 
         if session:
             new_history: list[ConversationMessage] = []
@@ -280,6 +283,8 @@ class SessionManager:
                 )
             session.conversation_history = new_history
             session.analysis_count += 1
+            # Merge any new analysis outputs back into session artifacts
+            session.artifacts.update(results.get("analysis_outputs", {}))
             self.session_store.save_session(session)
 
         return results
