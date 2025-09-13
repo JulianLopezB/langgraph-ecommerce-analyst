@@ -6,6 +6,7 @@ from .code_validator import CodeValidator
 from .code_executor import CodeExecutor
 from .insight_synthesizer import InsightSynthesizer
 from .session_store import SessionStore
+from .artifact_store import ArtifactStore
 
 __all__ = [
     "LLMClient",
@@ -14,4 +15,5 @@ __all__ = [
     "CodeExecutor",
     "InsightSynthesizer",
     "SessionStore",
+    "ArtifactStore",
 ]
