@@ -28,3 +28,37 @@ def test_handles_mixed_case_table_names():
     query = "SELECT * FROM Orders"
     expected = f"SELECT * FROM `{DATASET}.orders`"
     assert clean_sql_query(query, DATASET, MAX_RESULTS, add_limit=False) == expected
+
+
+def test_removes_markdown_fences_and_semicolon():
+    query = "```sql\nSELECT * FROM orders;\n```"
+    expected = "SELECT * FROM orders"
+    assert (
+        clean_sql_query(
+            query, DATASET, MAX_RESULTS, add_dataset_prefix=False, add_limit=False
+        )
+        == expected
+    )
+
+def test_removes_markdown_and_trailing_semicolon_and_adds_limit():
+    query = """```sql\nSELECT * FROM orders;\n```"""
+    expected = f"SELECT * FROM `{DATASET}.orders` LIMIT {MAX_RESULTS}"
+    assert clean_sql_query(query, DATASET, MAX_RESULTS) == expected
+
+
+def test_appends_limit_when_missing():
+    query = "SELECT * FROM orders"
+    expected = f"SELECT * FROM orders LIMIT {MAX_RESULTS}"
+    assert (
+        clean_sql_query(query, DATASET, MAX_RESULTS, add_dataset_prefix=False)
+        == expected
+    )
+
+
+def test_does_not_duplicate_limit_clause():
+    query = "SELECT * FROM orders LIMIT 5"
+    expected = "SELECT * FROM orders LIMIT 5"
+    assert (
+        clean_sql_query(query, DATASET, MAX_RESULTS, add_dataset_prefix=False)
+        == expected
+    )
