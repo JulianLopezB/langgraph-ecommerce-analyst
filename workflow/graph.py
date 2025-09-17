@@ -1,5 +1,6 @@
 """LangGraph workflow orchestration for the data analysis agent."""
 from typing import Dict, Any
+import pandas as pd
 from datetime import datetime
 import uuid
 
@@ -7,7 +8,7 @@ from langgraph.graph import StateGraph, END
 
 from workflow.state import AnalysisState, create_initial_state
 from domain.entities import ConversationMessage, AnalysisSession
-from domain.services import SessionStore
+from domain.services import SessionStore, ArtifactStore
 from workflow.nodes import (
     understand_query,
     generate_sql,
@@ -19,6 +20,7 @@ from workflow.nodes import (
     handle_error,
 )
 from infrastructure.persistence.in_memory_session_store import InMemorySessionStore
+from infrastructure.persistence import FilesystemArtifactStore
 from infrastructure.logging import get_logger
 
 logger = get_logger(__name__)
@@ -113,32 +115,42 @@ class DataAnalysisAgent:
         
         return workflow
     
-    def analyze(self, user_query: str, session_id: str = None) -> Dict[str, Any]:
+    def analyze(
+        self,
+        user_query: str,
+        session_id: str = None,
+        conversation_history: list[ConversationMessage] | None = None,
+        artifacts: Dict[str, Any] | None = None,
+    ) -> Dict[str, Any]:
         """
         Perform data analysis based on user query.
-        
+
         Args:
             user_query: Natural language query from user
             session_id: Optional session ID for tracking
-            
+            conversation_history: Prior conversation context
+            artifacts: Existing analysis outputs to seed the workflow
+
         Returns:
             Analysis results and conversation history
         """
         if session_id is None:
             session_id = str(uuid.uuid4())
-        
+
         logger.info(f"Starting analysis for query: {user_query[:100]}...")
-        
+
         try:
-            # Create initial state
-            initial_state = create_initial_state(user_query, session_id)
-            
-            # Add user message to conversation
+            # Create initial state with any existing conversation history
+            history = list(conversation_history) if conversation_history else None
+            initial_state = create_initial_state(user_query, session_id, history, artifacts)
+
+            # Record the new user message after loading existing history so
+            # downstream nodes receive the full conversation context
             user_message = ConversationMessage(
                 timestamp=datetime.now(),
                 role="user",
                 content=user_query,
-                message_type="query"
+                message_type="query",
             )
             initial_state["conversation_history"].append(user_message)
             
@@ -226,10 +238,12 @@ class SessionManager:
         self,
         session_store: SessionStore | None = None,
         agent: DataAnalysisAgent | None = None,
+        artifact_store: ArtifactStore | None = None,
     ) -> None:
         """Initialize session manager."""
         self.session_store = session_store or InMemorySessionStore()
         self.agent = agent or DataAnalysisAgent()
+        self.artifact_store = artifact_store or FilesystemArtifactStore()
 
     def start_session(self, session_id: str | None = None) -> str:
         """Start a new analysis session."""
@@ -244,20 +258,41 @@ class SessionManager:
 
     def analyze_query(self, user_query: str, session_id: str | None = None) -> Dict[str, Any]:
         """Analyze a query within a session context."""
-        if session_id is None or self.session_store.get_session(session_id) is None:
+        # Get or create session before analysis
+        session = self.session_store.get_session(session_id) if session_id else None
+        if session is None:
             session_id = self.start_session(session_id)
+            session = self.session_store.get_session(session_id)
 
-        # Perform analysis
-        results = self.agent.analyze(user_query, session_id)
-
-        session = self.session_store.get_session(session_id)
+        history = session.conversation_history if session else []
+        artifacts = {}
         if session:
+            for name, artifact in session.artifacts.items():
+                if (
+                    isinstance(artifact, dict)
+                    and artifact.get("type") == "dataframe"
+                    and "path" in artifact
+                ):
+                    try:
+                        artifacts[name] = self.artifact_store.load_dataframe(
+                            artifact["path"]
+                        )
+                    except Exception:
+                        artifacts[name] = artifact
+                else:
+                    artifacts[name] = artifact
+
+        # Perform analysis with existing conversation context and artifacts
+        results = self.agent.analyze(user_query, session_id, history, artifacts)
+
+        if session:
+            new_history: list[ConversationMessage] = []
             for msg in results.get("conversation_history", []):
                 try:
                     timestamp = datetime.fromisoformat(msg.get("timestamp", ""))
                 except Exception:
                     timestamp = datetime.now()
-                session.conversation_history.append(
+                new_history.append(
                     ConversationMessage(
                         timestamp=timestamp,
                         role=msg.get("role", ""),
@@ -265,7 +300,17 @@ class SessionManager:
                         message_type=msg.get("type", "text"),
                     )
                 )
+            session.conversation_history = new_history
             session.analysis_count += 1
+            processed = {}
+            for name, value in results.get("analysis_outputs", {}).items():
+                if isinstance(value, pd.DataFrame):
+                    processed[name] = self.artifact_store.save_dataframe(value, name)
+                else:
+                    processed[name] = value
+            session.artifacts.update(processed)
+            # Ensure cleanup policies are applied
+            self.artifact_store.cleanup()
             self.session_store.save_session(session)
 
         return results

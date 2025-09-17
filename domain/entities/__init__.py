@@ -69,3 +69,4 @@ class AnalysisSession:
     created_at: datetime
     conversation_history: List[ConversationMessage] = field(default_factory=list)
     analysis_count: int = 0
+    artifacts: Dict[str, Any] = field(default_factory=dict)

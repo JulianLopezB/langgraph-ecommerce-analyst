@@ -1,7 +1,7 @@
 """AI agent for intelligent SQL query generation."""
 
 from dataclasses import dataclass
-from typing import List
+from typing import List, Dict, Union
 
 from agents.process_classifier import ProcessTypeResult
 from agents.schema_agent import DataUnderstanding
@@ -49,19 +49,31 @@ class SQLGenerationAgent:
 
         logger.info("SQLGenerationAgent initialized")
     
-    def generate_sql(self, query: str, data_understanding: DataUnderstanding, 
-                    process_result: ProcessTypeResult) -> SQLGenerationResult:
+    def generate_sql(
+        self,
+        query_or_messages: Union[str, List[Dict[str, str]]],
+        data_understanding: DataUnderstanding,
+        process_result: ProcessTypeResult,
+    ) -> SQLGenerationResult:
         """
         Generate an optimized SQL query based on AI understanding of data and intent.
         
         Args:
-            query: Original user query
+            query_or_messages: Original user query or list of chat messages
             data_understanding: AI analysis of relevant data schema
             process_result: Process type classification result
             
         Returns:
             SQLGenerationResult with generated query and metadata
         """
+        if isinstance(query_or_messages, list):
+            query = "\n".join(
+                f"{m.get('role', 'user').capitalize()}: {m.get('content', '')}"
+                for m in query_or_messages
+            )
+        else:
+            query = query_or_messages
+
         with trace_agent_operation(
             name="generate_intelligent_sql",
             query=query,

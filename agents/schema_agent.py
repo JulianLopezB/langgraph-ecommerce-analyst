@@ -1,5 +1,5 @@
 """AI agent for intelligent schema analysis and data understanding."""
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 from dataclasses import dataclass
 import json
 
@@ -55,19 +55,31 @@ class SchemaIntelligenceAgent:
         self.llm_service = llm_client
         logger.info("SchemaIntelligenceAgent initialized")
     
-    def understand_data(self, query: str, schema_info: Dict[str, Any], 
-                       process_type: ProcessType) -> DataUnderstanding:
+    def understand_data(
+        self,
+        query_or_messages: Union[str, List[Dict[str, str]]],
+        schema_info: Dict[str, Any],
+        process_type: ProcessType,
+    ) -> DataUnderstanding:
         """
         Analyze the data schema in context of the user's query.
         
         Args:
-            query: User's natural language query
+            query_or_messages: User query or list of chat messages providing context
             schema_info: Available table schemas
             process_type: The determined process type (SQL, PYTHON, VISUALIZATION)
             
         Returns:
             DataUnderstanding with semantic analysis of relevant data
         """
+        if isinstance(query_or_messages, list):
+            query = "\n".join(
+                f"{m.get('role', 'user').capitalize()}: {m.get('content', '')}"
+                for m in query_or_messages
+            )
+        else:
+            query = query_or_messages
+
         with trace_agent_operation(
             name="analyze_data_schema",
             query=query,
