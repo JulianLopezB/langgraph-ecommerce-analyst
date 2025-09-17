@@ -1,11 +1,13 @@
 """LangSmith tracing setup and custom instrumentation."""
 import os
 from typing import Optional, Dict, Any, Callable
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from functools import wraps
 
 from langsmith import Client, traceable
 from langsmith.run_helpers import tracing_context
+
+from .opentelemetry_setup import otel_tracer
 
 from infrastructure.logging import get_logger
 
@@ -47,53 +49,56 @@ class LangSmithTracer:
     
     @contextmanager
     def trace_operation(self, name: str, operation_type: str = "custom", **metadata):
-        """
-        Context manager for tracing custom operations.
-        
-        Args:
-            name: Operation name
-            operation_type: Type of operation (bigquery, code_execution, etc.)
-            **metadata: Additional metadata to include
-        """
-        if not self.enabled:
-            yield
-            return
-        
-        try:
-            with tracing_context(
-                name=name,
-                metadata={
-                    "operation_type": operation_type,
-                    **metadata
-                }
-            ):
+        """Context manager for tracing custom operations."""
+
+        span_ctx = (
+            otel_tracer.start_as_current_span(name)
+            if otel_tracer
+            else nullcontext()
+        )
+
+        with span_ctx as span:
+            if span is not None:
+                span.set_attribute("operation_type", operation_type)
+                for key, value in metadata.items():
+                    span.set_attribute(key, value)
+
+            if not self.enabled:
                 yield
-        except Exception as e:
-            logger.error(f"Error in traced operation {name}: {e}")
-            yield
+                return
+
+            try:
+                with tracing_context(
+                    name=name,
+                    metadata={"operation_type": operation_type, **metadata},
+                ):
+                    yield
+            except Exception as e:
+                logger.error(f"Error in traced operation {name}: {e}")
+                yield
     
     def trace_function(self, name: Optional[str] = None, operation_type: str = "function"):
-        """
-        Decorator for tracing functions.
-        
-        Args:
-            name: Custom name for the trace (defaults to function name)
-            operation_type: Type of operation
-        """
+        """Decorator for tracing functions."""
+
         def decorator(func: Callable) -> Callable:
-            if not self.enabled:
-                return func
-            
+            traced_func = traceable(name=name or func.__name__)(func) if self.enabled else func
+
             @wraps(func)
-            @traceable(name=name or func.__name__)
             def wrapper(*args, **kwargs):
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    logger.error(f"Error in traced function {func.__name__}: {e}")
-                    raise
-            
+                span_ctx = (
+                    otel_tracer.start_as_current_span(name or func.__name__)
+                    if otel_tracer
+                    else nullcontext()
+                )
+                with span_ctx:
+                    try:
+                        return traced_func(*args, **kwargs)
+                    except Exception as e:
+                        logger.error(f"Error in traced function {func.__name__}: {e}")
+                        raise
+
             return wrapper
+
         return decorator
     
     def trace_llm_call(self, name: str, model: str, **metadata):

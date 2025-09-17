@@ -47,6 +47,12 @@ An AI-powered data analysis agent that processes e-commerce data from Google Big
    
    # LangSmith Tracing (optional - for debugging)
    LANGSMITH_API_KEY=your_langsmith_api_key_here
+
+   # OpenTelemetry (optional - tracing backend configuration)
+   OTEL_EXPORTER_JAEGER_AGENT_HOST=localhost
+   OTEL_EXPORTER_JAEGER_AGENT_PORT=6831
+   # Optional OTLP endpoint (e.g., OpenSearch or collector)
+   OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318/v1/traces
    ```
 
 4. **Set up Google Cloud authentication** (if using your own project):
@@ -62,11 +68,45 @@ An AI-powered data analysis agent that processes e-commerce data from Google Big
    ```
 
 2. **Ask questions about your data**:
+    ```
+    🔍 Your question: Segment our customers using RFM analysis
+    🔍 Your question: What are the sales trends for the last quarter?
+    🔍 Your question: Forecast sales for the next 3 months
+    ```
+
+## 🐳 Docker Compose
+
+Run the application alongside its dependencies using Docker Compose.
+
+1. Ensure a `.env` file exists in the project root with the required configuration values.
+2. Build and start all services:
+   ```bash
+   docker-compose up --build
    ```
-   🔍 Your question: Segment our customers using RFM analysis
-   🔍 Your question: What are the sales trends for the last quarter?
-   🔍 Your question: Forecast sales for the next 3 months
+   This launches the application, a PostgreSQL database, and a RabbitMQ broker on an isolated
+   `app-network`, persists data in the `db_data` and `rabbitmq_data` volumes, and allocates a TTY
+   for the app service so you can use the interactive CLI directly.
+3. Stop the services when finished:
+   ```bash
+   docker-compose down
    ```
+
+## 🐳 Docker
+
+The Docker image installs system build tools and pre-builds CmdStan so Prophet-based
+forecasting works out of the box.
+
+Build the image:
+
+```bash
+ docker build -t langgraph-ecommerce-analyst .
+```
+
+Run the container:
+
+```bash
+ docker run --rm -it -e GEMINI_API_KEY=your_gemini_api_key_here langgraph-ecommerce-analyst
+```
 
 ## 📊 Example Queries
 
@@ -175,6 +215,22 @@ from `application.controllers`. The controller exposes the same
 `start_session`, `analyze_query`, and `get_session_history` methods used by
 the CLI, enabling web services to reuse the `AnalysisWorkflow` without
 duplicating business logic.
+
+## 📈 Observability
+
+The agent emits OpenTelemetry traces and JSON-formatted logs.
+
+### Tracing
+
+1. Ensure a Jaeger instance or OpenTelemetry collector is running.
+2. Set `OTEL_EXPORTER_JAEGER_AGENT_HOST` and related environment variables.
+3. Start the application and open [http://localhost:16686](http://localhost:16686) to explore traces in Jaeger.
+4. If using an OTLP endpoint (e.g., OpenSearch), view traces using your collector's dashboard.
+
+### Logs
+
+- Structured logs are written to `logs/agent.log` in JSON format.
+- Forward this file to your log aggregator (e.g., OpenSearch) for centralized analysis.
 
 ## 🔍 Debugging
 
