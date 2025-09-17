@@ -66,6 +66,7 @@ def main() -> None:
         # Initialize OpenTelemetry tracing
         setup_otel_tracing()
 
+
         # Check environment
         check_environment(config)
 

@@ -46,6 +46,7 @@ def execute_sql(state: AnalysisState) -> AnalysisState:
                 f"Retrieved {len(df)} rows and {len(df.columns)} columns from BigQuery. "
                 f"Stored as {artifact_key}"
             ),
+
             message_type="result",
         )
         state["conversation_history"].append(message)

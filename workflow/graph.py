@@ -9,6 +9,7 @@ from langgraph.graph import StateGraph, END
 from workflow.state import AnalysisState, create_initial_state
 from domain.entities import ConversationMessage, AnalysisSession
 from domain.services import SessionStore, ArtifactStore
+
 from workflow.nodes import (
     understand_query,
     generate_sql,
@@ -21,6 +22,7 @@ from workflow.nodes import (
 )
 from infrastructure.persistence.in_memory_session_store import InMemorySessionStore
 from infrastructure.persistence import FilesystemArtifactStore
+
 from infrastructure.logging import get_logger
 
 logger = get_logger(__name__)
@@ -287,12 +289,14 @@ class SessionManager:
 
         if session:
             new_history: list[ConversationMessage] = []
+
             for msg in results.get("conversation_history", []):
                 try:
                     timestamp = datetime.fromisoformat(msg.get("timestamp", ""))
                 except Exception:
                     timestamp = datetime.now()
                 new_history.append(
+
                     ConversationMessage(
                         timestamp=timestamp,
                         role=msg.get("role", ""),
@@ -300,6 +304,7 @@ class SessionManager:
                         message_type=msg.get("type", "text"),
                     )
                 )
+
             session.conversation_history = new_history
             session.analysis_count += 1
             processed = {}

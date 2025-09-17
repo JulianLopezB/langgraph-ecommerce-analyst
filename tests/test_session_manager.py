@@ -4,6 +4,7 @@ from datetime import datetime
 from unittest.mock import MagicMock
 import pandas as pd
 
+
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from workflow.graph import SessionManager, DataAnalysisAgent
@@ -22,6 +23,7 @@ def create_manager(tmp_path=None):
         conversation_history: list | None = None,
         artifacts: dict | None = None,
     ):
+
         return {
             "session_id": session_id,
             "conversation_history": [
@@ -108,6 +110,7 @@ def test_analyze_query_rehydrates_saved_artifacts(tmp_path):
 
 def test_get_session_history_returns_expected_structure(tmp_path):
     manager, _, _, _ = create_manager(tmp_path)
+
     session_id = manager.start_session()
     manager.analyze_query("hello", session_id)
 
@@ -120,6 +123,7 @@ def test_get_session_history_returns_expected_structure(tmp_path):
 
 def test_list_sessions_returns_expected_structure(tmp_path):
     manager, _, _, _ = create_manager(tmp_path)
+
     session_id = manager.start_session()
     manager.analyze_query("hello", session_id)
 
@@ -132,6 +136,7 @@ def test_list_sessions_returns_expected_structure(tmp_path):
 
 def test_delete_session_removes_and_handles_unknown(tmp_path):
     manager, store, _, _ = create_manager(tmp_path)
+
     session_id = manager.start_session()
 
     assert manager.delete_session(session_id) is True
