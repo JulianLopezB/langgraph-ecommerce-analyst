@@ -7,8 +7,7 @@ from functools import wraps
 from langsmith import Client, traceable
 from langsmith.run_helpers import tracing_context
 
-from config import config
-from logging_config import get_logger
+from infrastructure.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -25,24 +24,23 @@ class LangSmithTracer:
     def setup_tracing(self) -> None:
         """Setup LangSmith tracing configuration."""
         try:
-            if config.api_configurations.enable_tracing and config.api_configurations.langsmith_api_key:
-                # Set environment variables for LangSmith
+            api_key = os.getenv("LANGCHAIN_API_KEY")
+            project = os.getenv("LANGCHAIN_PROJECT", "data-analysis-agent")
+            endpoint = os.getenv("LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com")
+            enable = os.getenv("LANGCHAIN_TRACING_V2", "true").lower() == "true"
+
+            if enable and api_key:
                 os.environ["LANGCHAIN_TRACING_V2"] = "true"
-                os.environ["LANGCHAIN_API_KEY"] = config.api_configurations.langsmith_api_key
-                os.environ["LANGCHAIN_PROJECT"] = config.api_configurations.langsmith_project
-                os.environ["LANGCHAIN_ENDPOINT"] = config.api_configurations.langsmith_endpoint
-                
-                # Initialize client
-                self.client = Client(
-                    api_url=config.api_configurations.langsmith_endpoint,
-                    api_key=config.api_configurations.langsmith_api_key
-                )
-                
+                os.environ["LANGCHAIN_API_KEY"] = api_key
+                os.environ["LANGCHAIN_PROJECT"] = project
+                os.environ["LANGCHAIN_ENDPOINT"] = endpoint
+
+                self.client = Client(api_url=endpoint, api_key=api_key)
                 self.enabled = True
-                logger.info(f"LangSmith tracing enabled for project: {config.api_configurations.langsmith_project}")
+                logger.info(f"LangSmith tracing enabled for project: {project}")
             else:
-                logger.info("LangSmith tracing disabled (missing API key or disabled in config)")
-                
+                logger.info("LangSmith tracing disabled (missing API key or disabled in env)")
+
         except Exception as e:
             logger.warning(f"Failed to setup LangSmith tracing: {e}")
             self.enabled = False

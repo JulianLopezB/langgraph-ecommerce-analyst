@@ -1,11 +1,11 @@
 """AI-driven process type classification agent."""
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, Any, List
 
-from workflow.state import ProcessType
-from logging_config import get_logger
-from services.llm_service import GeminiService
+from domain.entities import ProcessType
+from infrastructure.logging import get_logger
+from infrastructure.llm import llm_client
 from tracing.langsmith_setup import tracer, trace_agent_operation
 
 logger = get_logger(__name__)
@@ -19,11 +19,7 @@ class ProcessTypeResult:
     reasoning: str
     requires_aggregation: bool = False
     complexity_level: str = "medium"  # low, medium, high
-    suggested_tables: List[str] = None
-    
-    def __post_init__(self):
-        if self.suggested_tables is None:
-            self.suggested_tables = []
+    suggested_tables: List[str] = field(default_factory=list)
 
 
 class ProcessTypeClassifier:
@@ -31,7 +27,7 @@ class ProcessTypeClassifier:
     
     def __init__(self):
         """Initialize the process classifier."""
-        self.llm_service = GeminiService()
+        self.llm_service = llm_client
         logger.info("ProcessTypeClassifier initialized")
     
     def classify(self, query: str, schema_info: Dict[str, Any]) -> ProcessTypeResult:
@@ -91,15 +87,12 @@ class ProcessTypeClassifier:
         """Prepare a concise schema summary for the LLM."""
         if not schema_info:
             return "No schema information available"
-        
+
         summary_parts = []
         for table_name, schema in schema_info.items():
-            if isinstance(schema, dict) and 'columns' in schema:
-                columns = [col.get('name', str(col)) for col in schema['columns'][:10]]  # Limit columns
-                summary_parts.append(f"- {table_name}: {', '.join(columns)}")
-            else:
-                summary_parts.append(f"- {table_name}: schema details available")
-        
+            columns = [col.get('name', str(col)) for col in schema['columns'][:10]]  # Limit columns
+            summary_parts.append(f"- {table_name}: {', '.join(columns)}")
+
         return "\\n".join(summary_parts)
     
     def _create_classification_prompt(self, query: str, schema_summary: str) -> str:

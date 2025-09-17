@@ -3,9 +3,9 @@ from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 import json
 
-from workflow.state import ProcessType
-from services.llm_service import GeminiService
-from logging_config import get_logger
+from domain.entities import ProcessType
+from infrastructure.llm import llm_client
+from infrastructure.logging import get_logger
 from tracing.langsmith_setup import tracer, trace_agent_operation
 
 logger = get_logger(__name__)
@@ -52,7 +52,7 @@ class SchemaIntelligenceAgent:
     
     def __init__(self):
         """Initialize the schema intelligence agent."""
-        self.llm_service = GeminiService()
+        self.llm_service = llm_client
         logger.info("SchemaIntelligenceAgent initialized")
     
     def understand_data(self, query: str, schema_info: Dict[str, Any], 
@@ -199,20 +199,19 @@ Think semantically about data relationships and user intent, not just column nam
         
         formatted_parts = []
         for table_name, schema in schema_info.items():
-            if isinstance(schema, dict) and 'columns' in schema:
-                columns_info = []
-                for col in schema['columns'][:15]:  # Limit to avoid token limits
-                    if isinstance(col, dict):
-                        col_name = col.get('name', 'unknown')
-                        col_type = col.get('type', 'unknown')
-                        columns_info.append(f"  - {col_name} ({col_type})")
-                    else:
-                        columns_info.append(f"  - {str(col)}")
-                
-                formatted_parts.append(f"Table: {table_name}")
-                formatted_parts.extend(columns_info)
-                formatted_parts.append("")  # Empty line between tables
-        
+            columns_info = []
+            for col in schema['columns'][:15]:  # Limit to avoid token limits
+                if isinstance(col, dict):
+                    col_name = col.get('name', 'unknown')
+                    col_type = col.get('type', 'unknown')
+                    columns_info.append(f"  - {col_name} ({col_type})")
+                else:
+                    columns_info.append(f"  - {str(col)}")
+
+            formatted_parts.append(f"Table: {table_name}")
+            formatted_parts.extend(columns_info)
+            formatted_parts.append("")  # Empty line between tables
+
         return "\\n".join(formatted_parts)
     
     def _parse_schema_analysis(self, response_content: str, original_query: str) -> DataUnderstanding:
