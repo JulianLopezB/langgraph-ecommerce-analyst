@@ -1,4 +1,5 @@
 """Controller coordinating analysis requests between interfaces and workflow."""
+
 from typing import Dict, Any
 
 from workflow import AnalysisWorkflow

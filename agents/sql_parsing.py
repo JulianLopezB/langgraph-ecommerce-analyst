@@ -50,7 +50,9 @@ def parse_sql_response(
             estimated_complexity="medium",
             optimization_applied=["text_extraction"],
             tables_used=[table.name for table in data_understanding.relevant_tables],
-            metrics_computed=[metric.name for metric in data_understanding.target_metrics],
+            metrics_computed=[
+                metric.name for metric in data_understanding.target_metrics
+            ],
             confidence=0.5,
         )
 
@@ -76,4 +78,3 @@ def _extract_sql_from_text(text: str, dataset_id: str) -> str:
         return " ".join(sql_lines)
 
     return f"SELECT * FROM `{dataset_id}.orders` LIMIT 100"
-

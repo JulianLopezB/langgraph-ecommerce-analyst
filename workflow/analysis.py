@@ -1,4 +1,5 @@
 """High-level workflow interface for analysis sessions."""
+
 from typing import Dict, Any, Optional
 
 from .graph import SessionManager

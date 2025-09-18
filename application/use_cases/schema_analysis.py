@@ -1,4 +1,5 @@
 """Use case for retrieving and analyzing data schema information."""
+
 from typing import Any, Dict
 
 from domain.services import DataRepository

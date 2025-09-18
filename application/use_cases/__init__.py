@@ -1,4 +1,5 @@
 """Application use case implementations."""
+
 from .process_classification import ProcessClassificationUseCase
 from .schema_analysis import SchemaAnalysisUseCase
 from .sql_generation import SQLGenerationUseCase

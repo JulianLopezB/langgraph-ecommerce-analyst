@@ -3,7 +3,10 @@ import sys
 from unittest.mock import Mock
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from application.orchestrators.analysis_workflow import AnalysisWorkflow, create_workflow_adapter
+from application.orchestrators.analysis_workflow import (
+    AnalysisWorkflow,
+    create_workflow_adapter,
+)
 
 
 def test_workflow_adapter_sets_insights_key():

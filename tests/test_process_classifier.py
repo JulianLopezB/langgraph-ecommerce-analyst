@@ -11,14 +11,16 @@ from domain.entities import ProcessType
 
 def test_parse_classification_response_valid_json():
     classifier = ProcessTypeClassifier()
-    response = json.dumps({
-        "process_type": "python",
-        "confidence": 0.9,
-        "reasoning": "Requires advanced analysis",
-        "requires_aggregation": True,
-        "complexity_level": "high",
-        "suggested_tables": ["orders", "customers"],
-    })
+    response = json.dumps(
+        {
+            "process_type": "python",
+            "confidence": 0.9,
+            "reasoning": "Requires advanced analysis",
+            "requires_aggregation": True,
+            "complexity_level": "high",
+            "suggested_tables": ["orders", "customers"],
+        }
+    )
 
     result = classifier._parse_classification_response(response, "How many customers?")
 

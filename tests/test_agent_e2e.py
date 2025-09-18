@@ -13,7 +13,14 @@ from workflow.graph import DataAnalysisAgent
 def setup_common(monkeypatch, process_type):
     class DummyRepo:
         def get_table_schema(self, table):
-            return [{"name": "col", "type": "INTEGER", "mode": "NULLABLE", "description": ""}]
+            return [
+                {
+                    "name": "col",
+                    "type": "INTEGER",
+                    "mode": "NULLABLE",
+                    "description": "",
+                }
+            ]
 
         def execute_query(self, sql):
             return pd.DataFrame({"col": [1, 2, 3]})
@@ -71,9 +78,7 @@ def setup_common(monkeypatch, process_type):
             confidence=0.9,
         )
 
-    monkeypatch.setattr(
-        "agents.sql_agent.sql_agent.generate_sql", generate_sql
-    )
+    monkeypatch.setattr("agents.sql_agent.sql_agent.generate_sql", generate_sql)
     monkeypatch.setattr(
         "workflow.nodes.sql_generation.sql_agent",
         SimpleNamespace(generate_sql=generate_sql),

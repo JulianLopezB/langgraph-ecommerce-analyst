@@ -1,4 +1,5 @@
 """Application factory for creating fully wired controllers and services."""
+
 from __future__ import annotations
 
 from infrastructure.config import get_config

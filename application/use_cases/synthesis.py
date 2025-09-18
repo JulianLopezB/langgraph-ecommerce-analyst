@@ -1,4 +1,5 @@
 """Use case for synthesizing analysis results into insights."""
+
 from typing import Any
 
 from domain.services import InsightSynthesizer

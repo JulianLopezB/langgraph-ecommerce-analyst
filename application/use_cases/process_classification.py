@@ -1,4 +1,5 @@
 """Use case for classifying analytical processes."""
+
 from typing import Any, Dict
 
 from domain.services import LLMClient

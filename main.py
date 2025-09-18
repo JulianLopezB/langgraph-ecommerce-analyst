@@ -1,4 +1,5 @@
 """Main entry point for the LangGraph Data Analysis Agent."""
+
 import sys
 import warnings
 from pathlib import Path
@@ -30,11 +31,11 @@ def setup_logging(config, debug: bool = False) -> None:
 def check_environment(config) -> None:
     """Check that required environment variables and dependencies are available."""
     missing_vars = []
-    
+
     # Check for required API keys
     if not config.api_configurations.gemini_api_key:
         missing_vars.append("GEMINI_API_KEY")
-    
+
     if missing_vars:
         print("❌ Missing required environment variables:")
         for var in missing_vars:
@@ -44,14 +45,16 @@ def check_environment(config) -> None:
         print("2. Add your Gemini API key:")
         for var in missing_vars:
             print(f"   {var}=your_api_key_here")
-        print("\\n🔗 Get your Gemini API key from: https://makersuite.google.com/app/apikey")
+        print(
+            "\\n🔗 Get your Gemini API key from: https://makersuite.google.com/app/apikey"
+        )
         print("\\n🚀 Run 'python3 setup_environment.py' for guided setup")
         sys.exit(1)
-    
+
     # Check BigQuery configuration
     if not config.api_configurations.bigquery_project_id:
         print("⚠️  Warning: No BigQuery project ID set. Using default credentials.")
-    
+
     print("✅ Environment check passed")
 
 
@@ -66,17 +69,16 @@ def main() -> None:
         # Initialize OpenTelemetry tracing
         setup_otel_tracing()
 
-
         # Check environment
         check_environment(config)
 
         # Start CLI (pass debug flag if needed)
-        debug_mode = '--debug' in sys.argv
+        debug_mode = "--debug" in sys.argv
         if debug_mode:
             setup_logging(config, debug=True)
 
         cli_main()
-        
+
     except KeyboardInterrupt:
         print("\\n👋 Goodbye!")
         sys.exit(0)
