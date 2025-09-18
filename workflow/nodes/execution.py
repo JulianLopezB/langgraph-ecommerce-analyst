@@ -4,16 +4,12 @@ from typing import Dict, Any
 
 import pandas as pd
 
-from infrastructure.persistence import data_repository
-from infrastructure.execution import validator, secure_executor
+from infrastructure import persistence, llm, execution
 from infrastructure.logging import get_logger
-from infrastructure.llm import llm_client
 from workflow.state import AnalysisState
 from domain.entities import ConversationMessage
 
 logger = get_logger(__name__)
-data_repo = data_repository
-llm_service = llm_client
 
 
 def execute_sql(state: AnalysisState) -> AnalysisState:
@@ -21,7 +17,7 @@ def execute_sql(state: AnalysisState) -> AnalysisState:
     logger.info("Executing SQL query")
 
     try:
-        df = data_repo.execute_query(state["sql_query"])
+        df = persistence.data_repository.execute_query(state["sql_query"])
         state["raw_dataset"] = df
 
         # Store dataset as an artifact for future reference
@@ -144,7 +140,7 @@ def generate_python_code(state: AnalysisState) -> AnalysisState:
             "dataframe_name": state.get("active_dataframe", "df"),
         }
 
-        python_code = llm_service.generate_adaptive_python_code(analysis_context)
+        python_code = llm.llm_client.generate_adaptive_python_code(analysis_context)
 
         generated_code = state["generated_code"]
         if generated_code is None:
@@ -195,7 +191,7 @@ def validate_code(state: AnalysisState) -> AnalysisState:
         if not state["generated_code"]:
             raise ValueError("No code to validate")
 
-        validation_result = validator.validate(state["generated_code"].code_content)
+        validation_result = execution.validator.validate(state["generated_code"].code_content)
         state["validation_results"] = validation_result
 
         state["generated_code"].validation_passed = validation_result.is_valid
@@ -236,7 +232,7 @@ def execute_code(state: AnalysisState) -> AnalysisState:
         if df_name != "df":
             context["df"] = state["raw_dataset"]
 
-        execution_results = secure_executor.execute_code(
+        execution_results = execution.secure_executor.execute_code(
             state["generated_code"].code_content,
             context,
         )
@@ -363,7 +359,7 @@ def synthesize_results(state: AnalysisState) -> AnalysisState:
                 "python_results"
             ]
 
-        insights = llm_service.generate_insights(
+        insights = llm.llm_client.generate_insights(
             analysis_results,
             state["user_query"],
         )

@@ -5,7 +5,7 @@ from typing import Dict, Any, List, Union
 
 from domain.entities import ProcessType
 from infrastructure.logging import get_logger
-from infrastructure.llm import llm_client
+from infrastructure import llm
 from tracing.langsmith_setup import tracer, trace_agent_operation
 
 logger = get_logger(__name__)
@@ -27,7 +27,6 @@ class ProcessTypeClassifier:
     
     def __init__(self):
         """Initialize the process classifier."""
-        self.llm_service = llm_client
         logger.info("ProcessTypeClassifier initialized")
     
     def classify(
@@ -68,7 +67,7 @@ class ProcessTypeClassifier:
                 prompt = self._create_classification_prompt(query, schema_summary)
                 
                 # Get LLM response
-                response = self.llm_service.generate_text(prompt, temperature=0.1)
+                response = llm.llm_client.generate_text(prompt, temperature=0.1)  # Direct access
                 
                 # Parse the response
                 result = self._parse_classification_response(response.content, query)
