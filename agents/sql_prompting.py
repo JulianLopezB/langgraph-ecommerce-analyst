@@ -18,7 +18,7 @@ def create_sql_generation_prompt(
     dimensions_info = _format_dimensions_for_prompt(
         data_understanding.grouping_dimensions
     )
-    schema_details = _format_detailed_schema(data_understanding, dataset_id)
+    schema_details = _format_detailed_schema(data_understanding)
 
     return f"""
 You are an expert SQL developer specializing in BigQuery. Generate an optimized SQL query.
@@ -269,7 +269,7 @@ def _format_dimensions_for_prompt(dimensions: List[ColumnAnalysis]) -> str:
     return "\n".join(dim_descriptions)
 
 
-def _format_detailed_schema(data_understanding: DataUnderstanding, dataset_id: str) -> str:
+def _format_detailed_schema(data_understanding: DataUnderstanding) -> str:
     """Format detailed schema information showing exact column names for each table."""
     schema_template = f"""
 CRITICAL: Use ONLY these 4 existing tables. Do NOT create or reference any other tables:
