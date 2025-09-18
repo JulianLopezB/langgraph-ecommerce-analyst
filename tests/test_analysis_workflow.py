@@ -24,6 +24,11 @@ def make_workflow(classification_output):
     execution.execute_code.return_value = [2]
     synthesis = Mock()
     synthesis.synthesize.return_value = "insight"
+    
+    # Mock pipeline components
+    llm_client = Mock()
+    validator = Mock()
+    executor = Mock()
 
     workflow = AnalysisWorkflow(
         schema_analysis,
@@ -33,6 +38,9 @@ def make_workflow(classification_output):
         validation,
         execution,
         synthesis,
+        llm_client,
+        validator,
+        executor,
     )
     return workflow, python_generation, execution, sql_generation, validation
 
