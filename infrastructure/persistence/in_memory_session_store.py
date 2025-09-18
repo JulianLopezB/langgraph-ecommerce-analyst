@@ -1,5 +1,5 @@
-from typing import Dict, List, Optional
 import copy
+from typing import Dict, List, Optional
 
 from domain.entities import AnalysisSession
 from domain.services import SessionStore

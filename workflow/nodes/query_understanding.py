@@ -1,16 +1,17 @@
 """Query understanding node."""
 
-from datetime import datetime
-from typing import Dict, Any
 import re
+from datetime import datetime
+from typing import Any, Dict
+
 import pandas as pd
 
 from agents.process_classifier import process_classifier
-from infrastructure.persistence import data_repository
+from domain.entities import ConversationMessage, ProcessType
 from infrastructure.logging import get_logger
-from tracing.langsmith_setup import tracer, trace_agent_operation
+from infrastructure.persistence import data_repository
+from tracing.langsmith_setup import trace_agent_operation, tracer
 from workflow.state import AnalysisState
-from domain.entities import ProcessType, ConversationMessage
 
 logger = get_logger(__name__)
 data_repo = data_repository

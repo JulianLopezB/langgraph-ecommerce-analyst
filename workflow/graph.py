@@ -1,30 +1,28 @@
 """LangGraph workflow orchestration for the data analysis agent."""
 
-from typing import Dict, Any
-import pandas as pd
-from datetime import datetime
 import uuid
+from datetime import datetime
+from typing import Any, Dict
 
-from langgraph.graph import StateGraph, END
+import pandas as pd
+from langgraph.graph import END, StateGraph
 
-from workflow.state import AnalysisState, create_initial_state
-from domain.entities import ConversationMessage, AnalysisSession
-from domain.services import SessionStore, ArtifactStore
-
+from domain.entities import AnalysisSession, ConversationMessage
+from domain.services import ArtifactStore, SessionStore
+from infrastructure.logging import get_logger
+from infrastructure.persistence import FilesystemArtifactStore
+from infrastructure.persistence.in_memory_session_store import InMemorySessionStore
 from workflow.nodes import (
-    understand_query,
-    generate_sql,
+    execute_code,
     execute_sql,
     generate_python_code,
-    validate_code,
-    execute_code,
-    synthesize_results,
+    generate_sql,
     handle_error,
+    synthesize_results,
+    understand_query,
+    validate_code,
 )
-from infrastructure.persistence.in_memory_session_store import InMemorySessionStore
-from infrastructure.persistence import FilesystemArtifactStore
-
-from infrastructure.logging import get_logger
+from workflow.state import AnalysisState, create_initial_state
 
 logger = get_logger(__name__)
 

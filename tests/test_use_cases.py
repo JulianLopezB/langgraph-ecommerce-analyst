@@ -5,10 +5,10 @@ from unittest.mock import Mock
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from application.use_cases import (
-    sql_generation,
-    python_generation,
-    validation,
     execution,
+    python_generation,
+    sql_generation,
+    validation,
 )
 
 

@@ -12,11 +12,10 @@ warnings.filterwarnings("ignore", category=UserWarning, module="google.cloud.big
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from interface.cli.main import main as cli_main  # noqa: E402
 from infrastructure.config import get_config  # noqa: E402
 from infrastructure.logging import get_logger
+from interface.cli.main import main as cli_main  # noqa: E402
 from tracing import setup_otel_tracing
-
 
 logger = get_logger(__name__)
 

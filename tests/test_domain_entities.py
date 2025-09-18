@@ -5,11 +5,11 @@ from datetime import datetime
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from domain.entities import (
-    GeneratedCode,
-    ValidationResults,
+    ConversationMessage,
     ExecutionResults,
     ExecutionStatus,
-    ConversationMessage,
+    GeneratedCode,
+    ValidationResults,
 )
 
 

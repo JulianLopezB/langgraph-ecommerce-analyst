@@ -1,22 +1,22 @@
 """AI agent for intelligent SQL query generation."""
 
+import os
 from dataclasses import dataclass
-from typing import List, Dict, Union
+from typing import Dict, List, Union
 
 from agents.process_classifier import ProcessTypeResult
 from agents.schema_agent import DataUnderstanding
-from agents.sql_prompting import create_sql_generation_prompt
 from agents.sql_parsing import parse_sql_response
+from agents.sql_prompting import create_sql_generation_prompt
 from agents.sql_validation import (
     create_fallback_sql,
     init_sql_validator,
     optimize_and_validate,
     validate_sql_with_langchain,
 )
-import os
-from infrastructure.logging import get_logger
 from infrastructure.llm import llm_client
-from tracing.langsmith_setup import tracer, trace_agent_operation
+from infrastructure.logging import get_logger
+from tracing.langsmith_setup import trace_agent_operation, tracer
 
 logger = get_logger(__name__)
 

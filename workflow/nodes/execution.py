@@ -1,16 +1,16 @@
 """Execution and synthesis nodes."""
 
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
 
 import pandas as pd
 
-from infrastructure.persistence import data_repository
-from infrastructure.execution import validator, secure_executor
-from infrastructure.logging import get_logger
-from infrastructure.llm import llm_client
-from workflow.state import AnalysisState
 from domain.entities import ConversationMessage
+from infrastructure.execution import secure_executor, validator
+from infrastructure.llm import llm_client
+from infrastructure.logging import get_logger
+from infrastructure.persistence import data_repository
+from workflow.state import AnalysisState
 
 logger = get_logger(__name__)
 data_repo = data_repository

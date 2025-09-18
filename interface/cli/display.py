@@ -1,9 +1,10 @@
 """Console output and formatting helpers for the data analysis CLI."""
 
-from typing import Dict, Any, List
 from datetime import datetime
+from typing import Any, Dict, List
 
 from rich.table import Table
+
 from utils.sql_utils import format_error_message
 
 

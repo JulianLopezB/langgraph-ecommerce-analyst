@@ -3,13 +3,14 @@
 import os
 import time
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 import google.generativeai as genai
-from google.generativeai.types import HarmCategory, HarmBlockThreshold
+from google.generativeai.types import HarmBlockThreshold, HarmCategory
 
 from infrastructure.logging import get_logger
-from tracing.langsmith_setup import tracer, trace_llm_operation
+from tracing.langsmith_setup import trace_llm_operation, tracer
+
 from .base import LLMClient
 
 logger = get_logger(__name__)

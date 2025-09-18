@@ -3,14 +3,13 @@
 import sys
 from typing import Optional
 
-from application.controllers import AnalysisController
-
+from prompt_toolkit import prompt
+from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.history import InMemoryHistory
 from rich.console import Console
 from rich.prompt import Confirm
-from prompt_toolkit import prompt
-from prompt_toolkit.history import InMemoryHistory
-from prompt_toolkit.completion import WordCompleter
 
+from application.controllers import AnalysisController
 from infrastructure.logging import get_logger
 
 from . import commands, session

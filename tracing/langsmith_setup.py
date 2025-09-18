@@ -1,16 +1,16 @@
 """LangSmith tracing setup and custom instrumentation."""
 
 import os
-from typing import Optional, Dict, Any, Callable
 from contextlib import contextmanager, nullcontext
 from functools import wraps
+from typing import Any, Callable, Dict, Optional
 
 from langsmith import Client, traceable
 from langsmith.run_helpers import tracing_context
 
-from .opentelemetry_setup import otel_tracer
-
 from infrastructure.logging import get_logger
+
+from .opentelemetry_setup import otel_tracer
 
 logger = get_logger(__name__)
 

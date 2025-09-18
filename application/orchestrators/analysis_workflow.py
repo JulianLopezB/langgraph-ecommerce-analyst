@@ -2,16 +2,16 @@
 
 from typing import Any, Callable, Dict
 
-from domain.entities import ProcessType
 from application.use_cases import (
-    SchemaAnalysisUseCase,
-    ProcessClassificationUseCase,
-    SQLGenerationUseCase,
-    PythonGenerationUseCase,
-    CodeValidationUseCase,
     CodeExecutionUseCase,
+    CodeValidationUseCase,
     InsightSynthesisUseCase,
+    ProcessClassificationUseCase,
+    PythonGenerationUseCase,
+    SchemaAnalysisUseCase,
+    SQLGenerationUseCase,
 )
+from domain.entities import ProcessType
 
 
 class AnalysisWorkflow:

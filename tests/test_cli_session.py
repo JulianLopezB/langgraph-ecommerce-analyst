@@ -1,10 +1,11 @@
-import pytest
 from unittest.mock import MagicMock
 
+import pytest
+
 from interface.cli.session import (
-    start_session,
     analyze_query_with_progress,
     get_session_history,
+    start_session,
 )
 
 

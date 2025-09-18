@@ -1,11 +1,12 @@
-from typing import Optional, List, Dict, Any
-
 import os
+from typing import Any, Dict, List, Optional
+
 import pandas as pd
 from google.cloud import bigquery
 
 from infrastructure.logging import get_logger
 from tracing.langsmith_setup import tracer
+
 from .base import DataRepository
 
 logger = get_logger(__name__)
