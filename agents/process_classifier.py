@@ -2,12 +2,12 @@
 
 import json
 from dataclasses import dataclass, field
-from typing import Dict, Any, List, Union
+from typing import Any, Dict, List, Union
 
 from domain.entities import ProcessType
-from infrastructure.logging import get_logger
 from infrastructure.llm import llm_client
-from tracing.langsmith_setup import tracer, trace_agent_operation
+from infrastructure.logging import get_logger
+from tracing.langsmith_setup import trace_agent_operation, tracer
 
 logger = get_logger(__name__)
 

@@ -1,12 +1,13 @@
 import os
 import sys
 from types import SimpleNamespace
+
 import pandas as pd
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from agents.process_classifier import ProcessTypeResult
-from domain.entities import ProcessType, ExecutionStatus
+from domain.entities import ExecutionStatus, ProcessType
 from workflow.graph import DataAnalysisAgent
 
 

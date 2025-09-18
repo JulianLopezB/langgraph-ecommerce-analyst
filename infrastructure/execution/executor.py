@@ -6,16 +6,17 @@ preloaded into the sandbox before execution.
 """
 
 import io
-import time
-import traceback
 import resource
 import signal
+import time
+import traceback
+from contextlib import redirect_stderr, redirect_stdout
 from typing import Any, Dict
-from contextlib import redirect_stdout, redirect_stderr
 
+from domain.entities import ExecutionResults, ExecutionStatus
 from infrastructure.config import ExecutionLimits
-from domain.entities import ExecutionStatus, ExecutionResults
 from infrastructure.logging import get_logger
+
 from .base import CodeExecutor
 
 logger = get_logger(__name__)
@@ -208,28 +209,29 @@ class SecureExecutor(CodeExecutor):
 
         # Add allowed modules
         try:
-            import pandas as pd
-            import numpy as np
+            import json
+            import math
+            import re
+            import statistics
+            import warnings
+            from datetime import datetime, timedelta
+
             import matplotlib.pyplot as plt
-            import seaborn as sns
+            import numpy as np
+            import pandas as pd
             import plotly.express as px
             import plotly.graph_objects as go
-            from sklearn.cluster import KMeans
-            from sklearn.preprocessing import StandardScaler
-            from sklearn.metrics import silhouette_score
-            from sklearn.model_selection import train_test_split
-            from sklearn.linear_model import LinearRegression, LogisticRegression
-            from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-            from scipy import stats
-            from scipy.stats import pearsonr, spearmanr, normaltest, shapiro
+            import seaborn as sns
             import statsmodels.api as sm
             from prophet import Prophet
-            from datetime import datetime, timedelta
-            import math
-            import statistics
-            import json
-            import re
-            import warnings
+            from scipy import stats
+            from scipy.stats import normaltest, pearsonr, shapiro, spearmanr
+            from sklearn.cluster import KMeans
+            from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+            from sklearn.linear_model import LinearRegression, LogisticRegression
+            from sklearn.metrics import silhouette_score
+            from sklearn.model_selection import train_test_split
+            from sklearn.preprocessing import StandardScaler
 
             safe_globals.update(
                 {

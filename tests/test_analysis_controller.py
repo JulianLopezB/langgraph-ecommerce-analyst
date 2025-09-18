@@ -1,6 +1,7 @@
 import os
 import sys
 from unittest.mock import Mock
+
 import pytest
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))

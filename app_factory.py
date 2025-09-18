@@ -12,13 +12,13 @@ def _create_config():
 
 def _bind_services(config):
     """Instantiate and bind service implementations."""
-    from infrastructure.llm.gemini import GeminiClient
-    from infrastructure.persistence.bigquery import BigQueryRepository
-    from infrastructure.execution.executor import SecureExecutor
-    from infrastructure.execution.validator import CodeValidator
+    import infrastructure.execution as execution_module
     import infrastructure.llm as llm_module
     import infrastructure.persistence as persistence_module
-    import infrastructure.execution as execution_module
+    from infrastructure.execution.executor import SecureExecutor
+    from infrastructure.execution.validator import CodeValidator
+    from infrastructure.llm.gemini import GeminiClient
+    from infrastructure.persistence.bigquery import BigQueryRepository
 
     llm_client = GeminiClient(api_key=config.api_configurations.gemini_api_key)
     data_repository = BigQueryRepository(
@@ -46,8 +46,8 @@ def create_analysis_controller():
     config = _create_config()
     _bind_services(config)
 
-    from workflow import AnalysisWorkflow
     from application.controllers import AnalysisController
+    from workflow import AnalysisWorkflow
 
     workflow = AnalysisWorkflow()
     return AnalysisController(workflow=workflow)

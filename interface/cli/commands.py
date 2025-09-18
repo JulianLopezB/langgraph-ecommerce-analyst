@@ -1,9 +1,10 @@
 """Command handling for the data analysis CLI."""
 
 from typing import List
+
 from rich.prompt import Confirm
 
-from . import session, display
+from . import display, session
 
 COMMANDS: List[str] = [
     "help",

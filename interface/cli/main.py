@@ -4,9 +4,9 @@ from typing import Optional
 
 import click
 
+from app_factory import create_analysis_controller
 from infrastructure.logging import get_logger
 
-from app_factory import create_analysis_controller
 from .interface import DataAnalysisCLI
 
 logger = get_logger(__name__)

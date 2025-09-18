@@ -1,11 +1,12 @@
 import os
 import sys
-import pytest
 from unittest.mock import Mock
 
+import pytest
+
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from domain.entities import ProcessType
 from application.orchestrators.analysis_workflow import AnalysisWorkflow
+from domain.entities import ProcessType
 
 
 def make_workflow(classification_output):

@@ -1,8 +1,8 @@
 """Session management helpers for the data analysis CLI."""
 
-from typing import Dict, Any
-import time
 import threading
+import time
+from typing import Any, Dict
 
 from rich.progress import Progress, SpinnerColumn, TextColumn
 

@@ -1,15 +1,15 @@
 """State management for the LangGraph Data Analysis Agent."""
 
-from typing import Optional, List, Dict, Any, TypedDict
+from typing import Any, Dict, List, Optional, TypedDict
 
 import pandas as pd
 
 from domain.entities import (
-    ProcessType,
-    GeneratedCode,
-    ValidationResults,
-    ExecutionResults,
     ConversationMessage,
+    ExecutionResults,
+    GeneratedCode,
+    ProcessType,
+    ValidationResults,
 )
 
 

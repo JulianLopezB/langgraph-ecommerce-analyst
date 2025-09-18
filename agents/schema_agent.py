@@ -1,13 +1,13 @@
 """AI agent for intelligent schema analysis and data understanding."""
 
-from typing import Dict, Any, List, Optional, Union
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Union
 
 from domain.entities import ProcessType
 from infrastructure.llm import llm_client
 from infrastructure.logging import get_logger
-from tracing.langsmith_setup import tracer, trace_agent_operation
+from tracing.langsmith_setup import trace_agent_operation, tracer
 
 logger = get_logger(__name__)
 

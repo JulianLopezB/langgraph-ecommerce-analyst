@@ -2,10 +2,11 @@
 
 from typing import TYPE_CHECKING
 
-from agents.schema_agent import DataUnderstanding
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
+
+from agents.schema_agent import DataUnderstanding
 from infrastructure.logging import get_logger
 from utils.sql_utils import clean_sql_query
 

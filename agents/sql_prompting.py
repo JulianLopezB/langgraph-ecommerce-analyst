@@ -3,7 +3,7 @@
 from typing import List
 
 from agents.process_classifier import ProcessTypeResult
-from agents.schema_agent import DataUnderstanding, ColumnAnalysis
+from agents.schema_agent import ColumnAnalysis, DataUnderstanding
 
 
 def create_sql_generation_prompt(

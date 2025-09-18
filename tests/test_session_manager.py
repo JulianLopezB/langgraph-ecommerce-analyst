@@ -2,14 +2,14 @@ import os
 import sys
 from datetime import datetime
 from unittest.mock import MagicMock
-import pandas as pd
 
+import pandas as pd
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from workflow.graph import SessionManager, DataAnalysisAgent
-from infrastructure.persistence.in_memory_session_store import InMemorySessionStore
 from infrastructure.persistence import FilesystemArtifactStore
+from infrastructure.persistence.in_memory_session_store import InMemorySessionStore
+from workflow.graph import DataAnalysisAgent, SessionManager
 
 
 def create_manager(tmp_path=None):
