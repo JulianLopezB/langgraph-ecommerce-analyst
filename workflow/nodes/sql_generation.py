@@ -1,4 +1,5 @@
 """SQL generation node."""
+
 from datetime import datetime
 
 from agents.process_classifier import ProcessTypeResult
@@ -34,9 +35,15 @@ def generate_sql(state: AnalysisState) -> AnalysisState:
 
         state["analysis_outputs"]["data_understanding"] = {
             "query_intent": data_understanding.query_intent,
-            "relevant_tables": [table.name for table in data_understanding.relevant_tables],
-            "target_metrics": [metric.name for metric in data_understanding.target_metrics],
-            "grouping_dimensions": [dim.name for dim in data_understanding.grouping_dimensions],
+            "relevant_tables": [
+                table.name for table in data_understanding.relevant_tables
+            ],
+            "target_metrics": [
+                metric.name for metric in data_understanding.target_metrics
+            ],
+            "grouping_dimensions": [
+                dim.name for dim in data_understanding.grouping_dimensions
+            ],
             "complexity_score": data_understanding.complexity_score,
         }
 

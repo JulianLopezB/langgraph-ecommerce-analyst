@@ -1,4 +1,5 @@
 """Interactive CLI interface for the data analysis agent."""
+
 import sys
 from typing import Optional
 
@@ -29,7 +30,9 @@ class DataAnalysisCLI:
         self.controller = controller
 
         self.console.print("🤖 AI-Powered E-commerce Data Analysis Agent")
-        self.console.print("Ask me questions about your e-commerce data in natural language!")
+        self.console.print(
+            "Ask me questions about your e-commerce data in natural language!"
+        )
         self.console.print()
 
     def start_interactive_session(self) -> None:
@@ -57,10 +60,14 @@ class DataAnalysisCLI:
                     break
                 except Exception as e:
                     self.console.print(f"I encountered an issue: {str(e)}")
-                    self.console.print("Let's try that again, or type 'help' for assistance.")
+                    self.console.print(
+                        "Let's try that again, or type 'help' for assistance."
+                    )
                     logger.error(f"CLI error: {str(e)}")
 
-            self.console.print("\n👋 Thanks for using the Data Analysis Agent! Have a great day!")
+            self.console.print(
+                "\n👋 Thanks for using the Data Analysis Agent! Have a great day!"
+            )
         except Exception as e:
             self.console.print(f"I'm sorry, something went wrong: {str(e)}")
             self.console.print("Please try restarting the application.")

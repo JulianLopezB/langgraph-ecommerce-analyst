@@ -59,7 +59,9 @@ def test_analyze_query_with_progress(monkeypatch):
     controller.analyze_query.return_value = {"res": 1}
 
     progress = DummyProgress()
-    monkeypatch.setattr("interface.cli.session.Progress", lambda *args, **kwargs: progress)
+    monkeypatch.setattr(
+        "interface.cli.session.Progress", lambda *args, **kwargs: progress
+    )
     monkeypatch.setattr("interface.cli.session.time.sleep", lambda x: None)
     monkeypatch.setattr("interface.cli.session.threading.Thread", DummyThread)
 

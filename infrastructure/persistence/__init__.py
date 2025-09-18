@@ -1,4 +1,5 @@
 """Persistence layer bindings."""
+
 from .base import DataRepository
 from .bigquery import BigQueryRepository
 from .in_memory_session_store import InMemorySessionStore

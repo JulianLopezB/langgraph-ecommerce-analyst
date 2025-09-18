@@ -1,4 +1,5 @@
 """LangSmith tracing setup and custom instrumentation."""
+
 import os
 from typing import Optional, Dict, Any, Callable
 from contextlib import contextmanager, nullcontext
@@ -16,19 +17,21 @@ logger = get_logger(__name__)
 
 class LangSmithTracer:
     """Custom LangSmith tracer for the data analysis agent."""
-    
+
     def __init__(self):
         """Initialize LangSmith tracing."""
         self.client: Optional[Client] = None
         self.enabled = False
         self.setup_tracing()
-    
+
     def setup_tracing(self) -> None:
         """Setup LangSmith tracing configuration."""
         try:
             api_key = os.getenv("LANGCHAIN_API_KEY")
             project = os.getenv("LANGCHAIN_PROJECT", "data-analysis-agent")
-            endpoint = os.getenv("LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com")
+            endpoint = os.getenv(
+                "LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com"
+            )
             enable = os.getenv("LANGCHAIN_TRACING_V2", "true").lower() == "true"
 
             if enable and api_key:
@@ -41,20 +44,20 @@ class LangSmithTracer:
                 self.enabled = True
                 logger.info(f"LangSmith tracing enabled for project: {project}")
             else:
-                logger.info("LangSmith tracing disabled (missing API key or disabled in env)")
+                logger.info(
+                    "LangSmith tracing disabled (missing API key or disabled in env)"
+                )
 
         except Exception as e:
             logger.warning(f"Failed to setup LangSmith tracing: {e}")
             self.enabled = False
-    
+
     @contextmanager
     def trace_operation(self, name: str, operation_type: str = "custom", **metadata):
         """Context manager for tracing custom operations."""
 
         span_ctx = (
-            otel_tracer.start_as_current_span(name)
-            if otel_tracer
-            else nullcontext()
+            otel_tracer.start_as_current_span(name) if otel_tracer else nullcontext()
         )
 
         with span_ctx as span:
@@ -76,12 +79,16 @@ class LangSmithTracer:
             except Exception as e:
                 logger.error(f"Error in traced operation {name}: {e}")
                 yield
-    
-    def trace_function(self, name: Optional[str] = None, operation_type: str = "function"):
+
+    def trace_function(
+        self, name: Optional[str] = None, operation_type: str = "function"
+    ):
         """Decorator for tracing functions."""
 
         def decorator(func: Callable) -> Callable:
-            traced_func = traceable(name=name or func.__name__)(func) if self.enabled else func
+            traced_func = (
+                traceable(name=name or func.__name__)(func) if self.enabled else func
+            )
 
             @wraps(func)
             def wrapper(*args, **kwargs):
@@ -100,27 +107,24 @@ class LangSmithTracer:
             return wrapper
 
         return decorator
-    
+
     def trace_llm_call(self, name: str, model: str, **metadata):
         """
         Context manager for tracing LLM calls with specific metadata.
-        
+
         Args:
             name: Name of the LLM operation
             model: Model being used
             **metadata: Additional metadata
         """
         return self.trace_operation(
-            name=name,
-            operation_type="llm",
-            model=model,
-            **metadata
+            name=name, operation_type="llm", model=model, **metadata
         )
-    
+
     def trace_bigquery_operation(self, name: str, query: str, **metadata):
         """
         Context manager for tracing BigQuery operations.
-        
+
         Args:
             name: Name of the BigQuery operation
             query: SQL query being executed
@@ -130,13 +134,13 @@ class LangSmithTracer:
             name=name,
             operation_type="bigquery",
             sql_query=query[:500] + "..." if len(query) > 500 else query,
-            **metadata
+            **metadata,
         )
-    
+
     def trace_code_execution(self, name: str, code: str, **metadata):
         """
         Context manager for tracing code execution.
-        
+
         Args:
             name: Name of the code execution
             code: Code being executed
@@ -146,20 +150,20 @@ class LangSmithTracer:
             name=name,
             operation_type="code_execution",
             code_snippet=code[:200] + "..." if len(code) > 200 else code,
-            **metadata
+            **metadata,
         )
-    
+
     def log_metrics(self, metrics: Dict[str, Any], run_id: Optional[str] = None):
         """
         Log metrics to the current trace.
-        
+
         Args:
             metrics: Dictionary of metrics to log
             run_id: Optional run ID to attach metrics to
         """
         if not self.enabled:
             return
-        
+
         try:
             # Just log metrics as debug for now to avoid context issues
             # The tracing context API seems to be inconsistent
@@ -180,7 +184,7 @@ def trace_agent_operation(name: str, **metadata):
 
 
 def trace_llm_operation(name: str, model: str = "gemini", **metadata):
-    """Shorthand for tracing LLM operations.""" 
+    """Shorthand for tracing LLM operations."""
     return tracer.trace_llm_call(name=name, model=model, **metadata)
 
 

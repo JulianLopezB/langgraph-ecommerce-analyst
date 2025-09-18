@@ -1,4 +1,5 @@
 """Execution and synthesis nodes."""
+
 from datetime import datetime
 from typing import Dict, Any
 
@@ -25,8 +26,12 @@ def execute_sql(state: AnalysisState) -> AnalysisState:
         state["raw_dataset"] = df
 
         # Store dataset as an artifact for future reference
-        existing = [k for k in state["analysis_outputs"].keys() if k.startswith("result_")]
-        artifact_key = state.get("requested_artifact_name") or f"result_{len(existing) + 1}"
+        existing = [
+            k for k in state["analysis_outputs"].keys() if k.startswith("result_")
+        ]
+        artifact_key = (
+            state.get("requested_artifact_name") or f"result_{len(existing) + 1}"
+        )
         state["analysis_outputs"][artifact_key] = df
         state["active_dataframe"] = artifact_key
 
@@ -46,7 +51,6 @@ def execute_sql(state: AnalysisState) -> AnalysisState:
                 f"Retrieved {len(df)} rows and {len(df.columns)} columns from BigQuery. "
                 f"Stored as {artifact_key}"
             ),
-
             message_type="result",
         )
         state["conversation_history"].append(message)
@@ -83,13 +87,17 @@ def _inspect_data_characteristics(df) -> Dict[str, Any]:
             "non_null_counts": df.count().to_dict(),
             "numeric_columns": df.select_dtypes(include=["number"]).columns.tolist(),
             "datetime_columns": [],
-            "categorical_columns": df.select_dtypes(include=["object", "string"]).columns.tolist(),
+            "categorical_columns": df.select_dtypes(
+                include=["object", "string"]
+            ).columns.tolist(),
             "sample_values": {},
         }
 
         for col in df.columns:
             if df[col].dtype == "object":
-                sample_val = df[col].dropna().iloc[0] if not df[col].dropna().empty else None
+                sample_val = (
+                    df[col].dropna().iloc[0] if not df[col].dropna().empty else None
+                )
                 if sample_val and (
                     "date" in col.lower()
                     or "time" in col.lower()
@@ -98,7 +106,9 @@ def _inspect_data_characteristics(df) -> Dict[str, Any]:
                     characteristics["datetime_columns"].append(col)
 
             if not df[col].dropna().empty:
-                characteristics["sample_values"][col] = df[col].dropna().iloc[:3].tolist()
+                characteristics["sample_values"][col] = (
+                    df[col].dropna().iloc[:3].tolist()
+                )
 
         if len(df) > 0:
             characteristics["time_series_capable"] = len(df) >= 3
@@ -133,13 +143,19 @@ def generate_python_code(state: AnalysisState) -> AnalysisState:
 
         analysis_context = {
             "original_query": state["user_query"],
-            "query_intent": state["analysis_outputs"].get("data_understanding", {}).get("query_intent", state["user_query"]),
+            "query_intent": state["analysis_outputs"]
+            .get("data_understanding", {})
+            .get("query_intent", state["user_query"]),
             "process_data": state["analysis_outputs"]["process_data"],
             "sql_query": state.get("sql_query", ""),
-            "sql_explanation": state["analysis_outputs"].get("sql_metadata", {}).get("explanation", ""),
+            "sql_explanation": state["analysis_outputs"]
+            .get("sql_metadata", {})
+            .get("explanation", ""),
             "data_info": state["analysis_outputs"]["data_info"],
             "data_characteristics": data_characteristics,
-            "data_understanding": state["analysis_outputs"].get("data_understanding", {}),
+            "data_understanding": state["analysis_outputs"].get(
+                "data_understanding", {}
+            ),
             "sql_metadata": state["analysis_outputs"].get("sql_metadata", {}),
             "dataframe_name": state.get("active_dataframe", "df"),
         }
@@ -149,9 +165,12 @@ def generate_python_code(state: AnalysisState) -> AnalysisState:
         generated_code = state["generated_code"]
         if generated_code is None:
             from domain.entities import GeneratedCode  # avoid circular
+
             generated_code = GeneratedCode(
                 code_content=python_code,
-                template_used=analysis_context["process_data"].get("process_type", "unknown"),
+                template_used=analysis_context["process_data"].get(
+                    "process_type", "unknown"
+                ),
                 parameters={
                     "analysis_context": analysis_context,
                     "original_query": state["user_query"],
@@ -163,7 +182,9 @@ def generate_python_code(state: AnalysisState) -> AnalysisState:
             state["generated_code"] = generated_code
         else:
             generated_code.code_content = python_code
-            generated_code.template_used = analysis_context["process_data"].get("process_type", "unknown")
+            generated_code.template_used = analysis_context["process_data"].get(
+                "process_type", "unknown"
+            )
             generated_code.parameters = {
                 "analysis_context": analysis_context,
                 "original_query": state["user_query"],
@@ -245,13 +266,13 @@ def execute_code(state: AnalysisState) -> AnalysisState:
 
         if execution_results.status.value == "success":
             if execution_results.output_data:
-                state["analysis_outputs"]["python_results"] = execution_results.output_data
+                state["analysis_outputs"][
+                    "python_results"
+                ] = execution_results.output_data
             state["next_step"] = "synthesize_results"
             logger.info("Code executed successfully")
         else:
-            logger.warning(
-                f"Code execution failed: {execution_results.error_message}"
-            )
+            logger.warning(f"Code execution failed: {execution_results.error_message}")
             state["error_context"]["execution_error"] = execution_results.error_message
             state["next_step"] = "handle_error"
 
@@ -304,9 +325,7 @@ def synthesize_results(state: AnalysisState) -> AnalysisState:
             df = state["raw_dataset"]
             process_type = state["process_type"]
 
-            logger.debug(
-                "Synthesizing results for %s process", process_type.value
-            )
+            logger.debug("Synthesizing results for %s process", process_type.value)
             logger.debug(
                 "DataFrame shape: %s, columns: %s", df.shape, df.columns.tolist()
             )
@@ -320,9 +339,7 @@ def synthesize_results(state: AnalysisState) -> AnalysisState:
             }
 
             sql_metadata = state["analysis_outputs"].get("sql_metadata", {})
-            data_understanding = state["analysis_outputs"].get(
-                "data_understanding", {}
-            )
+            data_understanding = state["analysis_outputs"].get("data_understanding", {})
 
             analysis_results = {
                 "process_type": process_type.value,
@@ -336,12 +353,14 @@ def synthesize_results(state: AnalysisState) -> AnalysisState:
                 "complexity_level": sql_metadata.get("complexity", "medium"),
                 "tables_used": sql_metadata.get("tables_used", []),
                 "metrics_computed": sql_metadata.get("metrics_computed", []),
-                "full_dataset": df.to_dict("records")
-                if len(df) <= 100
-                else df.head(100).to_dict("records"),
-                "data_summary_stats": _generate_summary_stats(df)
-                if len(df) > 0
-                else {},
+                "full_dataset": (
+                    df.to_dict("records")
+                    if len(df) <= 100
+                    else df.head(100).to_dict("records")
+                ),
+                "data_summary_stats": (
+                    _generate_summary_stats(df) if len(df) > 0 else {}
+                ),
             }
 
             logger.debug(
@@ -352,9 +371,11 @@ def synthesize_results(state: AnalysisState) -> AnalysisState:
             logger.warning("No dataset available for analysis")
             analysis_results = {
                 "error": "No data available for analysis",
-                "process_type": state["process_type"].value
-                if state.get("process_type")
-                else "unknown",
+                "process_type": (
+                    state["process_type"].value
+                    if state.get("process_type")
+                    else "unknown"
+                ),
                 "query_intent": state["user_query"],
             }
 

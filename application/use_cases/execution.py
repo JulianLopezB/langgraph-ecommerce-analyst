@@ -1,4 +1,5 @@
 """Use case for executing code or queries."""
+
 from typing import Any
 
 from domain.services import CodeExecutor, DataRepository

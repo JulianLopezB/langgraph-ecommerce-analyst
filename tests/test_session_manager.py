@@ -15,7 +15,11 @@ from infrastructure.persistence import FilesystemArtifactStore
 def create_manager(tmp_path=None):
     store = InMemorySessionStore()
     agent = MagicMock(spec=DataAnalysisAgent)
-    artifact_store = FilesystemArtifactStore(base_path=str(tmp_path)) if tmp_path else FilesystemArtifactStore()
+    artifact_store = (
+        FilesystemArtifactStore(base_path=str(tmp_path))
+        if tmp_path
+        else FilesystemArtifactStore()
+    )
 
     def fake_analysis(
         user_query: str,
@@ -37,7 +41,9 @@ def create_manager(tmp_path=None):
         }
 
     agent.analyze.side_effect = fake_analysis
-    manager = SessionManager(session_store=store, agent=agent, artifact_store=artifact_store)
+    manager = SessionManager(
+        session_store=store, agent=agent, artifact_store=artifact_store
+    )
     return manager, store, agent, artifact_store
 
 
@@ -73,7 +79,9 @@ def test_analyze_query_merges_artifacts(tmp_path):
 
     df = pd.DataFrame({"a": [1, 2]})
 
-    def analysis_with_artifacts(user_query: str, session_id: str, conversation_history=None, artifacts=None):
+    def analysis_with_artifacts(
+        user_query: str, session_id: str, conversation_history=None, artifacts=None
+    ):
         return {
             "session_id": session_id,
             "conversation_history": [],
@@ -99,7 +107,9 @@ def test_analyze_query_rehydrates_saved_artifacts(tmp_path):
     session.artifacts["df"] = meta
     store.save_session(session)
 
-    def analysis_using_artifacts(user_query, session_id, conversation_history=None, artifacts=None):
+    def analysis_using_artifacts(
+        user_query, session_id, conversation_history=None, artifacts=None
+    ):
         assert isinstance(artifacts["df"], pd.DataFrame)
         pd.testing.assert_frame_equal(artifacts["df"], df)
         return {"session_id": session_id, "conversation_history": []}

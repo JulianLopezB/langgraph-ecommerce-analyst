@@ -6,13 +6,15 @@ from typing import Optional, List, Dict, Any
 
 class ProcessType(Enum):
     """Simplified process types for data analysis."""
-    SQL = "sql"              # All data retrieval, aggregation, and business analytics
-    PYTHON = "python"        # Complex analytics, ML, statistical analysis
+
+    SQL = "sql"  # All data retrieval, aggregation, and business analytics
+    PYTHON = "python"  # Complex analytics, ML, statistical analysis
     VISUALIZATION = "visualization"  # Charts, plots, and visual representations
 
 
 class ExecutionStatus(Enum):
     """Status of code execution."""
+
     PENDING = "pending"
     RUNNING = "running"
     SUCCESS = "success"
@@ -23,6 +25,7 @@ class ExecutionStatus(Enum):
 @dataclass
 class GeneratedCode:
     """Information about generated Python code."""
+
     code_content: str
     language: str = "python"
     template_used: Optional[str] = None
@@ -34,6 +37,7 @@ class GeneratedCode:
 @dataclass
 class ValidationResults:
     """Results from code validation pipeline."""
+
     is_valid: bool
     syntax_errors: List[str] = field(default_factory=list)
     security_warnings: List[str] = field(default_factory=list)
@@ -44,6 +48,7 @@ class ValidationResults:
 @dataclass
 class ExecutionResults:
     """Results from code execution."""
+
     status: ExecutionStatus
     output_data: Optional[Any] = None
     execution_time: float = 0.0
@@ -56,6 +61,7 @@ class ExecutionResults:
 @dataclass
 class ConversationMessage:
     """Individual message in conversation history."""
+
     timestamp: datetime
     role: str  # 'user' or 'assistant'
     content: str
@@ -65,6 +71,7 @@ class ConversationMessage:
 @dataclass
 class AnalysisSession:
     """Represents an analysis conversation session."""
+
     session_id: str
     created_at: datetime
     conversation_history: List[ConversationMessage] = field(default_factory=list)

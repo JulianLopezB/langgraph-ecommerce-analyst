@@ -17,7 +17,9 @@ def test_dataframe_serialization_and_loading(tmp_path):
 
 
 def test_cleanup_removes_old_files(tmp_path):
-    store = FilesystemArtifactStore(base_path=str(tmp_path), max_total_mb=10, max_age_seconds=1)
+    store = FilesystemArtifactStore(
+        base_path=str(tmp_path), max_total_mb=10, max_age_seconds=1
+    )
     df = pd.DataFrame({"x": [1, 2]})
     meta = store.save_dataframe(df, "old")
     # Make the file appear old

@@ -8,6 +8,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from workflow.state import create_initial_state
 from workflow.nodes import execution, query_understanding
 
+
 def test_artifact_reference_reuses_dataframe(monkeypatch):
     # Simulate first query producing a DataFrame artifact
     df = pd.DataFrame({"a": [1, 2]})

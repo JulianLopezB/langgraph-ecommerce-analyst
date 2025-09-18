@@ -60,9 +60,7 @@ def init_sql_validator(api_key: str | None, dataset_id: str):
             ]
         ).format(DATASET_ID=dataset_id)
 
-        sql_validation_chain = (
-            validation_prompt | langchain_llm | StrOutputParser()
-        )
+        sql_validation_chain = validation_prompt | langchain_llm | StrOutputParser()
 
         logger.info("LangChain SQL validator initialized successfully")
         return sql_validation_chain
@@ -78,12 +76,18 @@ def validate_sql_with_langchain(
     """Validate SQL query using LangChain validation chain."""
     if sql_validation_chain is None:
         logger.warning("LangChain SQL validator not available, using basic cleaning")
-        return clean_sql_query(sql_query, dataset_id, max_results, add_dataset_prefix=False, add_limit=True)
+        return clean_sql_query(
+            sql_query, dataset_id, max_results, add_dataset_prefix=False, add_limit=True
+        )
 
     try:
         validated_sql = sql_validation_chain.invoke({"query": sql_query})
         validated_sql = clean_sql_query(
-            validated_sql, dataset_id, max_results, add_dataset_prefix=False, add_limit=True
+            validated_sql,
+            dataset_id,
+            max_results,
+            add_dataset_prefix=False,
+            add_limit=True,
         )
         logger.info("SQL query validated successfully with LangChain")
         return validated_sql
@@ -91,7 +95,9 @@ def validate_sql_with_langchain(
         logger.warning(
             f"LangChain SQL validation failed: {e}, falling back to basic cleaning"
         )
-        return clean_sql_query(sql_query, dataset_id, max_results, add_dataset_prefix=False, add_limit=True)
+        return clean_sql_query(
+            sql_query, dataset_id, max_results, add_dataset_prefix=False, add_limit=True
+        )
 
 
 def optimize_and_validate(
@@ -135,7 +141,9 @@ def optimize_and_validate(
     )
 
 
-def create_fallback_sql(query: str, data_understanding: DataUnderstanding, dataset_id: str):
+def create_fallback_sql(
+    query: str, data_understanding: DataUnderstanding, dataset_id: str
+):
     """Create a basic fallback SQL when generation fails."""
     from agents.sql_agent import SQLGenerationResult
 
@@ -149,7 +157,9 @@ def create_fallback_sql(query: str, data_understanding: DataUnderstanding, datas
         SELECT *
         FROM `{DATASET_ID}.{primary_table}`
         LIMIT 100
-        """.format(DATASET_ID=dataset_id)
+        """.format(
+        DATASET_ID=dataset_id
+    )
 
     return SQLGenerationResult(
         sql_query=fallback_sql.strip(),
@@ -160,4 +170,3 @@ def create_fallback_sql(query: str, data_understanding: DataUnderstanding, datas
         metrics_computed=[],
         confidence=0.3,
     )
-

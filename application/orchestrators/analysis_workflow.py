@@ -1,4 +1,5 @@
 """High-level orchestration for the data analysis workflow."""
+
 from typing import Any, Callable, Dict
 
 from domain.entities import ProcessType
@@ -43,7 +44,11 @@ class AnalysisWorkflow:
         # Determine processing strategy
         process_type_raw = self._process_classification.classify(query, schema_info)
         process_type = next(
-            (ptype for ptype in ProcessType if ptype.value in str(process_type_raw).lower()),
+            (
+                ptype
+                for ptype in ProcessType
+                if ptype.value in str(process_type_raw).lower()
+            ),
             ProcessType.SQL,
         )
 
@@ -65,7 +70,9 @@ class AnalysisWorkflow:
         return self._synthesis.synthesize(data, query)
 
 
-def create_workflow_adapter(workflow: AnalysisWorkflow) -> Callable[[Dict[str, Any]], Dict[str, Any]]:
+def create_workflow_adapter(
+    workflow: AnalysisWorkflow,
+) -> Callable[[Dict[str, Any]], Dict[str, Any]]:
     """Adapter for integrating the workflow with LangGraph nodes.
 
     The returned callable expects a state dictionary containing a

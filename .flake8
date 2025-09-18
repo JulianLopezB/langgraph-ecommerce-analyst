@@ -1,0 +1,21 @@
+[flake8]
+max-line-length = 88
+extend-ignore = E203,W503,E501,E401,E402,F401,F541,F811,F821
+exclude = 
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    lint_env,
+    test_env,
+    .pytest_cache,
+    build,
+    dist
+per-file-ignores =
+    # Tests can have longer lines and unused imports
+    tests/*.py:E501,F401,F811
+    # Init files often have unused imports
+    __init__.py:F401
+    # SQL prompting templates use DATASET_ID as template variables
+    agents/sql_prompting.py:F821
+    agents/sql_validation.py:F821

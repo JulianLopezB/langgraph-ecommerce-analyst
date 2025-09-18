@@ -13,7 +13,9 @@ if TYPE_CHECKING:  # pragma: no cover - only for type hints
 otel_tracer: Optional["trace_mod.Tracer"] = None
 
 
-def setup_tracing(service_name: str = "data-analysis-agent") -> Optional["trace_mod.Tracer"]:
+def setup_tracing(
+    service_name: str = "data-analysis-agent",
+) -> Optional["trace_mod.Tracer"]:
     """Configure OpenTelemetry tracing with OTLP exporters.
 
     If the OpenTelemetry SDK is not installed, the function returns ``None`` and
@@ -41,7 +43,9 @@ def setup_tracing(service_name: str = "data-analysis-agent") -> Optional["trace_
 
     # OTLP exporter configuration (supports Jaeger via OTLP endpoint)
     # Default to Jaeger's OTLP HTTP endpoint if no specific endpoint is provided
-    otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318/v1/traces")
+    otlp_endpoint = os.getenv(
+        "OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318/v1/traces"
+    )
     otlp_exporter = OTLPSpanExporter(endpoint=otlp_endpoint, insecure=True)
     provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
 
@@ -50,4 +54,3 @@ def setup_tracing(service_name: str = "data-analysis-agent") -> Optional["trace_
 
 
 __all__ = ["setup_tracing", "otel_tracer"]
-

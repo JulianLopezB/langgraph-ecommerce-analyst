@@ -1,4 +1,5 @@
 """Use case for generating SQL queries from natural language."""
+
 from typing import Any, Dict
 
 from domain.services import LLMClient
