@@ -4,9 +4,9 @@ from typing import Any, Dict, Optional
 from domain.entities import GeneratedCode, ExecutionResults
 from domain.pipeline.base import Pipeline, PipelineContext, PipelineResult, PipelineStage, StageResult
 from domain.pipeline.stages import (
-    CodeGenerationStage, 
-    CodeCleaningStage, 
-    CodeValidationStage, 
+    CodeGenerationStage,
+    CodeCleaningStage,
+    CodeValidationStage,
     CodeExecutionStage,
     ReflectionStage
 )
@@ -22,11 +22,11 @@ class CodeGenerationPipeline(Pipeline):
     """
     Structured pipeline for code generation with clear stages:
     Generation → Cleaning → Validation → Execution
-    
+
     This pipeline replaces the fragmented approach with a structured pattern
     that enables proper error propagation, logging, and metrics collection.
     """
-    
+
     def __init__(
         self,
         llm_client: LLMClient,
@@ -35,37 +35,30 @@ class CodeGenerationPipeline(Pipeline):
     ):
         """
         Initialize the code generation pipeline.
-        
-        Args:
+     Args:
             llm_client: Client for generating code
             validator: Code validator for security and syntax checking
             executor: Secure code executor
         """
         super().__init__("code_generation_pipeline")
-        
-        self.llm_client = llm_client
+     self.llm_client = llm_client
         self.validator = validator
         self.executor = executor
-        
-        # Build the pipeline stages
+     # Build the pipeline stages
         self._build_pipeline()
-    
+
     def _build_pipeline(self) -> None:
         """Build the pipeline with all necessary stages."""
         # Stage 1: Generate code using LLM
         self.add_stage(CodeGenerationStage(self.llm_client))
-        
-        # Stage 2: Clean and format the generated code
+     # Stage 2: Clean and format the generated code
         self.add_stage(CodeCleaningStage())
-        
-        # Stage 3: Validate code for security and syntax
+     # Stage 3: Validate code for security and syntax
         self.add_stage(CodeValidationStage(self.validator))
-        
-        # Stage 4: Execute validated code in secure environment
+     # Stage 4: Execute validated code in secure environment
         self.add_stage(CodeExecutionStage(self.executor))
-        
-        logger.info(f"Built pipeline with {len(self.stages)} stages")
-    
+     logger.info(f"Built pipeline with {len(self.stages)} stages")
+
     def generate_and_execute_code(
         self,
         user_query: str,
@@ -73,11 +66,10 @@ class CodeGenerationPipeline(Pipeline):
     ) -> PipelineResult:
         """
         Generate and execute code using the structured pipeline.
-        
-        Args:
+     Args:
             user_query: The original user query
             analysis_context: Context for code generation including data characteristics
-            
+
         Returns:
             PipelineResult with execution results and comprehensive metrics
         """
@@ -86,13 +78,10 @@ class CodeGenerationPipeline(Pipeline):
             user_query=user_query,
             analysis_context=analysis_context
         )
-        
-        logger.info(f"Starting code generation pipeline for query: {user_query[:100]}...")
-        
-        # Execute the pipeline
+     logger.info(f"Starting code generation pipeline for query: {user_query[:100]}...")
+     # Execute the pipeline
         result = self.execute(context)
-        
-        # Log final result
+     # Log final result
         if result.success:
             logger.info(
                 f"Pipeline completed successfully in {result.total_execution_time:.2f}s"
@@ -101,13 +90,12 @@ class CodeGenerationPipeline(Pipeline):
             logger.error(
                 f"Pipeline failed: {result.error_message}"
             )
-        
-        return result
-    
+     return result
+
     def _update_context_after_stage(
         self, 
-        context: PipelineContext, 
-        stage: PipelineStage, 
+        context: PipelineContext,
+        stage: PipelineStage,
         result: StageResult
     ) -> None:
         """Update context after each stage execution."""
@@ -115,23 +103,23 @@ class CodeGenerationPipeline(Pipeline):
             # Store the generated code entity
             generated_code: GeneratedCode = result.data
             context.code_content = generated_code.code_content
-            
+
         elif stage.stage_name == "code_cleaning" and result.success:
             # Store the cleaned code
             context.cleaned_code = result.data
-            
+
         elif stage.stage_name == "code_validation" and result.success:
             # Store validation results
             context.validation_results = result.data
-            
+
         elif stage.stage_name == "code_execution" and result.success:
             # Store execution results
             context.execution_results = result.data
-            
+
         elif stage.stage_name == "reflection" and result.success:
             # Store reflection results in context metadata
             context.stage_metadata["reflection_analysis"] = result.data
-    
+
     def _extract_final_output(self, context: PipelineContext) -> Dict[str, Any]:
         """Extract comprehensive output from the pipeline execution."""
         output = {
@@ -146,15 +134,13 @@ class CodeGenerationPipeline(Pipeline):
             "pipeline_metrics": context.metrics,
             "stage_metadata": context.stage_metadata
         }
-        
-        return output
-    
+     return output
+
     def add_reflection_stage(self, enable_reflection: bool = True) -> None:
         """
         Add a reflection stage for analyzing execution results and suggesting improvements.
         This demonstrates how new stages can be easily added to the pipeline.
-        
-        Args:
+     Args:
             enable_reflection: Whether to enable reflection stage
         """
         if enable_reflection:
@@ -163,7 +149,7 @@ class CodeGenerationPipeline(Pipeline):
             logger.info("Reflection stage added to pipeline - will analyze execution results")
         else:
             logger.info("Reflection stage capability available but not enabled")
-    
+
     def get_pipeline_health(self) -> Dict[str, Any]:
         """Get health information about the pipeline components."""
         return {
@@ -186,13 +172,12 @@ def create_code_generation_pipeline(
 ) -> CodeGenerationPipeline:
     """
     Factory function to create a properly configured code generation pipeline.
-    
+
     Args:
         llm_client: LLM client for code generation
         validator: Code validator
         executor: Secure code executor
-        
-    Returns:
+ Returns:
         Configured CodeGenerationPipeline instance
     """
     pipeline = CodeGenerationPipeline(
@@ -200,6 +185,6 @@ def create_code_generation_pipeline(
         validator=validator,
         executor=executor
     )
-    
+
     logger.info("Created code generation pipeline with all stages configured")
     return pipeline

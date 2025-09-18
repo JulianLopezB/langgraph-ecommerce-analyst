@@ -11,7 +11,6 @@ from infrastructure.llm import llm_client
 from infrastructure.logging import get_logger
 from infrastructure.persistence import data_repository
 from workflow.state import AnalysisState
-from domain.entities import ConversationMessage
 from domain.pipeline import CodeGenerationPipeline, create_code_generation_pipeline
 
 
@@ -21,6 +20,7 @@ llm_service = llm_client
 
 # Initialize the structured code generation pipeline
 _pipeline_instance = None
+
 
 def get_code_generation_pipeline() -> CodeGenerationPipeline:
     """Get or create the code generation pipeline instance."""
@@ -190,48 +190,48 @@ def generate_python_code(state: AnalysisState) -> AnalysisState:
         if pipeline_result.success:
             # Extract results from pipeline
             pipeline_output = pipeline_result.final_output
-            
+
             # Update state with pipeline results
             state["generated_code"] = pipeline_output["generated_code"]
             state["validation_results"] = pipeline_output["validation_results"]
             state["execution_results"] = pipeline_output["execution_results"]
-            
+
             # Store pipeline metrics for monitoring
             state["pipeline_metrics"] = pipeline_output["pipeline_metrics"]
             state["stage_metadata"] = pipeline_output["stage_metadata"]
-            
+
             # Update analysis outputs with execution results
             if state["execution_results"] and state["execution_results"].output_data:
                 state["analysis_outputs"]["python_results"] = state["execution_results"].output_data
-            
+
             # Pipeline completed successfully - skip to synthesis
             state["next_step"] = "synthesize_results"
-            
+
             logger.info(
-                f"Pipeline completed successfully for query: {state['user_query'][:50]}... "
+                f"Pipeline completed successfully for query: {state['user_query'][:50]}..."
                 f"(Total time: {pipeline_result.total_execution_time:.2f}s)"
 
             )
-            
+
         else:
             # Pipeline failed - handle error with context
             logger.error(f"Pipeline failed: {pipeline_result.error_message}")
-            
+
             # Collect detailed error context from all stages
             error_details = []
             for stage_name, stage_result in pipeline_result.stage_results.items():
                 if stage_result.failed:
                     error_details.append(f"{stage_name}: {stage_result.error_message}")
-            
+
             comprehensive_error = f"Pipeline failure: {'; '.join(error_details)}"
             state["error_context"]["pipeline_error"] = comprehensive_error
             state["error_context"]["stage_errors"] = {
                 stage: result.error_context 
-                for stage, result in pipeline_result.stage_results.items() 
+                for stage, result in pipeline_result.stage_results.items()
                 if result.failed
 
             }
-            
+
             state["next_step"] = "handle_error"
 
     except Exception as e:
@@ -245,17 +245,16 @@ def generate_python_code(state: AnalysisState) -> AnalysisState:
 def validate_code(state: AnalysisState) -> AnalysisState:
     """
     Legacy validation function - now handled by structured pipeline.
-    
+
     This function is maintained for backward compatibility but validation
     is now performed as part of the CodeGenerationPipeline.
     """
     logger.warning("Using legacy validate_code function - pipeline should handle this")
-    
+
     # If pipeline results are already available, use them
     if state.get("validation_results") and state.get("generated_code"):
         validation_result = state["validation_results"]
-        
-        if validation_result.is_valid:
+     if validation_result.is_valid:
             state["next_step"] = "execute_code"
             logger.info("Using pipeline validation results - passed")
         else:
@@ -266,9 +265,8 @@ def validate_code(state: AnalysisState) -> AnalysisState:
                 "security_score": validation_result.security_score,
             }
             state["next_step"] = "handle_error"
-        
-        return state
-    
+     return state
+
     # Fallback to original validation logic if pipeline results not available
     try:
         if not state["generated_code"]:
@@ -305,17 +303,16 @@ def validate_code(state: AnalysisState) -> AnalysisState:
 def execute_code(state: AnalysisState) -> AnalysisState:
     """
     Legacy execution function - now handled by structured pipeline.
-    
+
     This function is maintained for backward compatibility but execution
     is now performed as part of the CodeGenerationPipeline.
     """
     logger.warning("Using legacy execute_code function - pipeline should handle this")
-    
+
     # If pipeline results are already available, use them
     if state.get("execution_results"):
         execution_results = state["execution_results"]
-        
-        if execution_results.status.value == "success":
+     if execution_results.status.value == "success":
             if execution_results.output_data:
                 state["analysis_outputs"]["python_results"] = execution_results.output_data
             state["next_step"] = "synthesize_results"
@@ -324,9 +321,8 @@ def execute_code(state: AnalysisState) -> AnalysisState:
             logger.warning("Using pipeline execution results - failed")
             state["error_context"]["execution_error"] = execution_results.error_message
             state["next_step"] = "handle_error"
-        
-        return state
-    
+     return state
+
     # Fallback to original execution logic if pipeline results not available
     try:
         if not state["generated_code"] or not state["generated_code"].validation_passed:

@@ -25,7 +25,7 @@ def make_workflow(classification_output):
     execution.execute_code.return_value = [2]
     synthesis = Mock()
     synthesis.synthesize.return_value = "insight"
-    
+
     # Mock pipeline components
     llm_client = Mock()
     validator = Mock()

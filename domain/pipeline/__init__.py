@@ -4,7 +4,7 @@ from .code_generation import CodeGenerationPipeline, create_code_generation_pipe
 
 __all__ = [
     "PipelineStage",
-    "PipelineContext", 
+    "PipelineContext",
     "PipelineResult",
     "PipelineStatus",
     "CodeGenerationPipeline",

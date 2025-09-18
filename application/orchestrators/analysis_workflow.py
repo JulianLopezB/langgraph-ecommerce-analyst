@@ -22,11 +22,10 @@ from infrastructure.logging import get_logger
 
 logger = get_logger(__name__)
 
-
 class AnalysisWorkflow:
     """
     Coordinate use case classes to produce final analysis results.
-    
+
     This class now uses the structured CodeGenerationPipeline to replace
     the previous fragmented approach with proper error propagation,
     logging, and metrics collection.
@@ -53,28 +52,24 @@ class AnalysisWorkflow:
         self._validation = validation
         self._execution = execution
         self._synthesis = synthesis
-        
-        # Create structured pipeline for code generation
+     # Create structured pipeline for code generation
         self._code_pipeline = create_code_generation_pipeline(
             llm_client=llm_client,
             validator=validator,
             executor=executor
         )
-        
-        logger.info("AnalysisWorkflow initialized with structured code generation pipeline")
+     logger.info("AnalysisWorkflow initialized with structured code generation pipeline")
 
-    
     def run(self, query: str) -> str:
         """
         Execute the complete analysis workflow and return insights.
-        
-        Now uses the structured CodeGenerationPipeline for Python code generation
+     Now uses the structured CodeGenerationPipeline for Python code generation
         instead of the fragmented approach, providing better error handling,
         logging, and metrics collection.
         """
         try:
             logger.info(f"Starting analysis workflow for query: {query[:100]}...")
-            
+
             # Analyze data schema
             schema_info = self._schema_analysis.analyze()
             logger.debug("Schema analysis completed")
@@ -95,8 +90,7 @@ class AnalysisWorkflow:
             # For complex analysis, use structured pipeline for Python code generation
             if process_type is ProcessType.PYTHON:
                 logger.info("Using structured pipeline for Python code generation")
-                
-                # Prepare analysis context for pipeline
+             # Prepare analysis context for pipeline
                 analysis_context = {
                     "original_query": query,
                     "query_intent": query,
@@ -110,19 +104,16 @@ class AnalysisWorkflow:
                     "dataframe_name": "df",
                     "raw_dataset": data
                 }
-                
-                # Execute structured pipeline
+             # Execute structured pipeline
                 pipeline_result = self._code_pipeline.generate_and_execute_code(
                     user_query=query,
                     analysis_context=analysis_context
                 )
-                
-                if pipeline_result.success:
+             if pipeline_result.success:
                     logger.info(
                         f"Pipeline completed successfully in {pipeline_result.total_execution_time:.2f}s"
                     )
-                    
-                    # Extract execution results
+             # Extract execution results
                     if pipeline_result.final_output and pipeline_result.final_output.get("execution_results"):
                         execution_results = pipeline_result.final_output["execution_results"]
                         if execution_results.output_data:
@@ -136,11 +127,9 @@ class AnalysisWorkflow:
                     for stage_name, stage_result in pipeline_result.stage_results.items():
                         if stage_result.failed:
                             error_details.append(f"{stage_name}: {stage_result.error_message}")
-                    
-                    comprehensive_error = f"Code generation pipeline failed: {'; '.join(error_details)}"
+             comprehensive_error = f"Code generation pipeline failed: {'; '.join(error_details)}"
                     logger.error(comprehensive_error)
-                    
-                    # Instead of raising generic ValueError, provide structured error
+             # Instead of raising generic ValueError, provide structured error
                     raise RuntimeError(
                         f"Analysis failed during Python code generation. "
                         f"Pipeline error: {pipeline_result.error_message}. "
@@ -151,16 +140,16 @@ class AnalysisWorkflow:
             insights = self._synthesis.synthesize(data, query)
             logger.info("Analysis workflow completed successfully")
             return insights
-            
+
         except Exception as e:
             logger.error(f"Analysis workflow failed: {str(e)}", exc_info=True)
             raise
-    
+
     def _inspect_data_characteristics(self, data) -> Dict[str, Any]:
         """Inspect data characteristics for pipeline context."""
         try:
             import pandas as pd
-            
+
             if isinstance(data, pd.DataFrame):
                 return {
                     "shape": data.shape,
@@ -184,7 +173,6 @@ class AnalysisWorkflow:
                 "type": type(data).__name__,
                 "inspection_error": str(e)
             }
-
 
 def create_workflow_adapter(
     workflow: AnalysisWorkflow,
