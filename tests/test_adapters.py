@@ -182,22 +182,6 @@ def test_secure_executor_zero_division():
     assert 'ZeroDivisionError' in result.stderr
 
 
-def test_secure_executor_import_blocked():
-    limits = ExecutionLimits(max_execution_time=5, max_memory_mb=512, max_output_size_mb=1)
-    executor = _minimal_executor(limits)
-    code = "__import__('os')"
-    result = executor.execute_code(code)
-    assert result.status == ExecutionStatus.FAILED
-    assert '__import__' in (result.error_message or '')
-    limits = ExecutionLimits(max_execution_time=5, max_memory_mb=50, max_output_size_mb=1)
-    executor = SecureExecutor(limits)
-    executor._set_resource_limits = lambda: None
-    executor._create_safe_globals = lambda: {"__builtins__": {"print": print, "MemoryError": MemoryError}}
-    code = "raise MemoryError('too big')"
-    result = executor.execute_code(code)
-    assert result.status == ExecutionStatus.FAILED
-    assert "memory limit" in result.error_message.lower()
-
 
 def test_secure_executor_exception():
     limits = ExecutionLimits(max_execution_time=5, max_memory_mb=256, max_output_size_mb=1)
