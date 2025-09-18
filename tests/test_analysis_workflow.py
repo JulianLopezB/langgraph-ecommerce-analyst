@@ -1,11 +1,12 @@
 import os
 import sys
-import pytest
 from unittest.mock import Mock
 
+import pytest
+
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from domain.entities import ProcessType
 from application.orchestrators.analysis_workflow import AnalysisWorkflow
+from domain.entities import ProcessType
 
 
 def make_workflow(classification_output):
@@ -54,7 +55,9 @@ def test_python_branch_triggered_for_normalized_process_type(raw_output):
 
 
 def test_python_branch_skipped_when_not_python():
-    workflow, python_generation, execution, sql_generation, _ = make_workflow(ProcessType.SQL)
+    workflow, python_generation, execution, sql_generation, _ = make_workflow(
+        ProcessType.SQL
+    )
     workflow.run("question")
     python_generation.generate.assert_not_called()
     execution.execute_code.assert_not_called()
@@ -63,7 +66,9 @@ def test_python_branch_skipped_when_not_python():
 
 
 def test_validation_failure_raises_value_error():
-    workflow, python_generation, execution, sql_generation, validation = make_workflow(ProcessType.PYTHON)
+    workflow, python_generation, execution, sql_generation, validation = make_workflow(
+        ProcessType.PYTHON
+    )
     validation.validate.return_value = False
     with pytest.raises(ValueError):
         workflow.run("question")

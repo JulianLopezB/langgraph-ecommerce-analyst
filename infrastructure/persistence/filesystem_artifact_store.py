@@ -1,7 +1,8 @@
 import os
 import time
 import uuid
-from typing import Dict, Any
+from typing import Any, Dict
+
 import pandas as pd
 
 from domain.services import ArtifactStore
@@ -59,7 +60,10 @@ class FilesystemArtifactStore(ArtifactStore):
                 stat = os.stat(fpath)
             except FileNotFoundError:
                 continue
-            if self.max_age_seconds is not None and now - stat.st_mtime > self.max_age_seconds:
+            if (
+                self.max_age_seconds is not None
+                and now - stat.st_mtime > self.max_age_seconds
+            ):
                 try:
                     os.remove(fpath)
                 except FileNotFoundError:

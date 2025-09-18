@@ -1,4 +1,5 @@
 """Use case for generating Python analysis code."""
+
 from domain.services import LLMClient
 
 

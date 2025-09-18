@@ -1,8 +1,10 @@
 """Console output and formatting helpers for the data analysis CLI."""
-from typing import Dict, Any, List
+
 from datetime import datetime
+from typing import Any, Dict, List
 
 from rich.table import Table
+
 from utils.sql_utils import format_error_message
 
 
@@ -42,7 +44,9 @@ def show_session_history(console, conversation: List[Dict[str, Any]]) -> None:
         console.print("We haven't chatted yet! Ask me a question to get started.")
         return
 
-    table = Table(title="Conversation History", show_header=True, header_style="bold magenta")
+    table = Table(
+        title="Conversation History", show_header=True, header_style="bold magenta"
+    )
     table.add_column("Time", style="dim", width=20)
     table.add_column("Role", width=10)
     table.add_column("Message", width=60)
@@ -50,7 +54,11 @@ def show_session_history(console, conversation: List[Dict[str, Any]]) -> None:
     for msg in conversation[-10:]:
         timestamp = datetime.fromisoformat(msg["timestamp"]).strftime("%H:%M:%S")
         role = "🧠 Agent" if msg["role"] == "assistant" else "👤 You"
-        content = msg["content"][:100] + "..." if len(msg["content"]) > 100 else msg["content"]
+        content = (
+            msg["content"][:100] + "..."
+            if len(msg["content"]) > 100
+            else msg["content"]
+        )
         table.add_row(timestamp, role, content)
 
     console.print(table)
@@ -94,9 +102,9 @@ def convert_markdown_to_text(markdown_text: str) -> str:
     import re
 
     text = markdown_text
-    text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
-    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
-    text = re.sub(r'\*(.*?)\*', r'\1', text)
-    text = re.sub(r'^[-*+]\s+', '• ', text, flags=re.MULTILINE)
-    text = re.sub(r'\n\s*\n', '\n\n', text)
+    text = re.sub(r"^#{1,6}\s+", "", text, flags=re.MULTILINE)
+    text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
+    text = re.sub(r"\*(.*?)\*", r"\1", text)
+    text = re.sub(r"^[-*+]\s+", "• ", text, flags=re.MULTILINE)
+    text = re.sub(r"\n\s*\n", "\n\n", text)
     return text.strip()

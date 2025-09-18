@@ -1,4 +1,5 @@
 """Centralized logging configuration for the Data Analysis Agent."""
+
 import json
 import logging
 import sys
@@ -45,7 +46,9 @@ def setup_logging(
 
     # Use config settings with overrides
     log_file = log_file or logging_config.file_path or "logs/agent.log"
-    log_level = logging.DEBUG if debug else getattr(logging, logging_config.level.upper())
+    log_level = (
+        logging.DEBUG if debug else getattr(logging, logging_config.level.upper())
+    )
     log_format = logging_config.format
 
     # Create handlers based on config
@@ -55,7 +58,7 @@ def setup_logging(
         handlers.append(logging.StreamHandler(sys.stdout))
 
     if logging_config.file_output:
-        handlers.append(logging.FileHandler(log_file, mode='a', encoding='utf-8'))
+        handlers.append(logging.FileHandler(log_file, mode="a", encoding="utf-8"))
 
     # Ensure we have at least one handler
     if not handlers:
@@ -74,9 +77,9 @@ def setup_logging(
     logging.basicConfig(level=log_level, handlers=handlers, force=True)
 
     # Set specific loggers
-    logging.getLogger('urllib3').setLevel(logging.WARNING)
-    logging.getLogger('google').setLevel(logging.WARNING)
-    logging.getLogger('matplotlib').setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("google").setLevel(logging.WARNING)
+    logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
     # Mark as configured
     _logging_configured = True
@@ -87,18 +90,19 @@ def setup_logging(
     logger.info(f"Log level: {logging.getLevelName(log_level)}")
     logger.info(f"Log file: {log_file}")
 
+
 def get_logger(name: str) -> logging.Logger:
     """
     Get a logger for a module, ensuring logging is configured.
-    
+
     Args:
         name: Logger name (usually __name__)
-        
+
     Returns:
         Configured logger instance
     """
     # Ensure logging is configured with defaults if not already done
     if not _logging_configured:
         setup_logging()
-    
+
     return logging.getLogger(name)

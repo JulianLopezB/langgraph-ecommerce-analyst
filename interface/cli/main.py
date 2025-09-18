@@ -1,19 +1,20 @@
 """Entry point for the data analysis CLI."""
+
 from typing import Optional
 
 import click
 
+from app_factory import create_analysis_controller
 from infrastructure.logging import get_logger
 
-from app_factory import create_analysis_controller
 from .interface import DataAnalysisCLI
 
 logger = get_logger(__name__)
 
 
 @click.command()
-@click.option('--debug', is_flag=True, help='Enable debug logging')
-@click.option('--session-id', help='Resume existing session')
+@click.option("--debug", is_flag=True, help="Enable debug logging")
+@click.option("--session-id", help="Resume existing session")
 def main(debug: bool, session_id: Optional[str]) -> None:
     """AI-Powered E-commerce Data Analysis Agent CLI."""
     logger.info(f"Starting CLI interface (debug={debug})")

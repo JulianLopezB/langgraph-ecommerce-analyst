@@ -1,17 +1,20 @@
 """High-level orchestration for the data analysis workflow."""
+
 from typing import Any, Callable, Dict
 
 from domain.entities import ProcessType
 from domain.pipeline import CodeGenerationPipeline, create_code_generation_pipeline
+
 from application.use_cases import (
-    SchemaAnalysisUseCase,
-    ProcessClassificationUseCase,
-    SQLGenerationUseCase,
-    PythonGenerationUseCase,
-    CodeValidationUseCase,
     CodeExecutionUseCase,
+    CodeValidationUseCase,
     InsightSynthesisUseCase,
+    ProcessClassificationUseCase,
+    PythonGenerationUseCase,
+    SchemaAnalysisUseCase,
+    SQLGenerationUseCase,
 )
+
 from infrastructure.execution.validator import CodeValidator
 from infrastructure.execution.executor import SecureExecutor
 from infrastructure.llm.base import LLMClient
@@ -60,6 +63,7 @@ class AnalysisWorkflow:
         
         logger.info("AnalysisWorkflow initialized with structured code generation pipeline")
 
+    
     def run(self, query: str) -> str:
         """
         Execute the complete analysis workflow and return insights.
@@ -182,7 +186,9 @@ class AnalysisWorkflow:
             }
 
 
-def create_workflow_adapter(workflow: AnalysisWorkflow) -> Callable[[Dict[str, Any]], Dict[str, Any]]:
+def create_workflow_adapter(
+    workflow: AnalysisWorkflow,
+) -> Callable[[Dict[str, Any]], Dict[str, Any]]:
     """Adapter for integrating the workflow with LangGraph nodes.
 
     The returned callable expects a state dictionary containing a

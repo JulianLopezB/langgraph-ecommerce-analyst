@@ -51,9 +51,7 @@ An AI-powered data analysis agent that processes e-commerce data from Google Big
    LANGSMITH_API_KEY=your_langsmith_api_key_here
 
    # OpenTelemetry (optional - tracing backend configuration)
-   OTEL_EXPORTER_JAEGER_AGENT_HOST=localhost
-   OTEL_EXPORTER_JAEGER_AGENT_PORT=6831
-   # Optional OTLP endpoint (e.g., OpenSearch or collector)
+   # OTLP endpoint for sending traces (defaults to Jaeger's OTLP HTTP endpoint)
    OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318/v1/traces
    ```
 
@@ -245,10 +243,10 @@ The agent emits OpenTelemetry traces and JSON-formatted logs.
 
 ### Tracing
 
-1. Ensure a Jaeger instance or OpenTelemetry collector is running.
-2. Set `OTEL_EXPORTER_JAEGER_AGENT_HOST` and related environment variables.
+1. Ensure a Jaeger instance (with OTLP support) or OpenTelemetry collector is running.
+2. Set `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable (defaults to Jaeger's OTLP HTTP endpoint: `http://localhost:4318/v1/traces`).
 3. Start the application and open [http://localhost:16686](http://localhost:16686) to explore traces in Jaeger.
-4. If using an OTLP endpoint (e.g., OpenSearch), view traces using your collector's dashboard.
+4. If using a different OTLP endpoint (e.g., OpenSearch), view traces using your collector's dashboard.
 
 ### Logs
 

@@ -21,7 +21,10 @@ def test_add_dataset_prefix_with_alias():
 
 def test_does_not_modify_substrings():
     query = "SELECT * FROM preorders"
-    assert clean_sql_query(query, DATASET, MAX_RESULTS, add_limit=False) == "SELECT * FROM preorders"
+    assert (
+        clean_sql_query(query, DATASET, MAX_RESULTS, add_limit=False)
+        == "SELECT * FROM preorders"
+    )
 
 
 def test_handles_mixed_case_table_names():
@@ -39,6 +42,7 @@ def test_removes_markdown_fences_and_semicolon():
         )
         == expected
     )
+
 
 def test_removes_markdown_and_trailing_semicolon_and_adds_limit():
     query = """```sql\nSELECT * FROM orders;\n```"""

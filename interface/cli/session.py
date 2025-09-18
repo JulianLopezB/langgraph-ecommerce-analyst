@@ -1,7 +1,8 @@
 """Session management helpers for the data analysis CLI."""
-from typing import Dict, Any
-import time
+
 import threading
+import time
+from typing import Any, Dict
 
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
@@ -62,6 +63,8 @@ def analyze_query_with_progress(
         return results
 
 
-def get_session_history(session_id: str, controller: AnalysisController) -> Dict[str, Any]:
+def get_session_history(
+    session_id: str, controller: AnalysisController
+) -> Dict[str, Any]:
     """Retrieve session conversation history."""
     return controller.get_session_history(session_id)

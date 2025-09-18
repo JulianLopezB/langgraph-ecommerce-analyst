@@ -1,19 +1,27 @@
 import os
 import sys
 from types import SimpleNamespace
+
 import pandas as pd
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from agents.process_classifier import ProcessTypeResult
-from domain.entities import ProcessType, ExecutionStatus
+from domain.entities import ExecutionStatus, ProcessType
 from workflow.graph import DataAnalysisAgent
 
 
 def setup_common(monkeypatch, process_type):
     class DummyRepo:
         def get_table_schema(self, table):
-            return [{"name": "col", "type": "INTEGER", "mode": "NULLABLE", "description": ""}]
+            return [
+                {
+                    "name": "col",
+                    "type": "INTEGER",
+                    "mode": "NULLABLE",
+                    "description": "",
+                }
+            ]
 
         def execute_query(self, sql):
             return pd.DataFrame({"col": [1, 2, 3]})
@@ -71,9 +79,7 @@ def setup_common(monkeypatch, process_type):
             confidence=0.9,
         )
 
-    monkeypatch.setattr(
-        "agents.sql_agent.sql_agent.generate_sql", generate_sql
-    )
+    monkeypatch.setattr("agents.sql_agent.sql_agent.generate_sql", generate_sql)
     monkeypatch.setattr(
         "workflow.nodes.sql_generation.sql_agent",
         SimpleNamespace(generate_sql=generate_sql),

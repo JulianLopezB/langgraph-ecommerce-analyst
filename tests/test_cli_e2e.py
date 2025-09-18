@@ -14,17 +14,17 @@ def test_cli_typical_session(monkeypatch, capsys):
     controller.get_session_history.return_value = {}
 
     inputs = iter(["What are sales?", "exit"])
-    monkeypatch.setattr("interface.cli.interface.prompt", lambda *args, **kwargs: next(inputs))
     monkeypatch.setattr(
-        "interface.cli.session.start_session", lambda ctrl: "sess1"
+        "interface.cli.interface.prompt", lambda *args, **kwargs: next(inputs)
     )
+    monkeypatch.setattr("interface.cli.session.start_session", lambda ctrl: "sess1")
     monkeypatch.setattr(
         "interface.cli.session.analyze_query_with_progress",
         lambda console, user_query, session_id, ctrl: {"insights": "great"},
     )
     monkeypatch.setattr(
         "interface.cli.display.display_results",
-        lambda console, results: console.print(f"Insights: {results['insights']}")
+        lambda console, results: console.print(f"Insights: {results['insights']}"),
     )
 
     cli = DataAnalysisCLI(controller)

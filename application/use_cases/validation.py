@@ -1,4 +1,5 @@
 """Use case for validating generated code."""
+
 from domain.services import CodeValidator
 
 

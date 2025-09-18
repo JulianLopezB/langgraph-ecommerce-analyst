@@ -1,15 +1,17 @@
 """Query understanding node."""
-from datetime import datetime
-from typing import Dict, Any
+
 import re
+from datetime import datetime
+from typing import Any, Dict
+
 import pandas as pd
 
 from agents.process_classifier import process_classifier
-from infrastructure.persistence import data_repository
+from domain.entities import ConversationMessage, ProcessType
 from infrastructure.logging import get_logger
-from tracing.langsmith_setup import tracer, trace_agent_operation
+from infrastructure.persistence import data_repository
+from tracing.langsmith_setup import trace_agent_operation, tracer
 from workflow.state import AnalysisState
-from domain.entities import ProcessType, ConversationMessage
 
 logger = get_logger(__name__)
 data_repo = data_repository
@@ -66,7 +68,11 @@ def _resolve_context(state: AnalysisState) -> None:
     name_match = re.search(r"\bas\s+(?P<name>[A-Za-z_]\w*)", query, re.IGNORECASE)
     if name_match:
         state["requested_artifact_name"] = name_match.group("name")
-        query = (query[: name_match.start()].strip() + " " + query[name_match.end() :].strip()).strip()
+        query = (
+            query[: name_match.start()].strip()
+            + " "
+            + query[name_match.end() :].strip()
+        ).strip()
 
     if artifacts:
         lower_query = query.lower()
@@ -105,9 +111,7 @@ def understand_query(state: AnalysisState) -> AnalysisState:
             )
             state["contextual_prompt"] = contextual_prompt
 
-            process_result = process_classifier.classify(
-                contextual_prompt, schema_info
-            )
+            process_result = process_classifier.classify(contextual_prompt, schema_info)
 
             state["process_type"] = process_result.process_type
             state["confidence_score"] = process_result.confidence
@@ -145,10 +149,12 @@ def understand_query(state: AnalysisState) -> AnalysisState:
             state["conversation_history"].append(message)
 
             if process_result.confidence > 0.7:
-                if (
-                    state.get("raw_dataset") is not None
-                    and process_result.process_type in {ProcessType.PYTHON, ProcessType.VISUALIZATION}
-                ):
+                if state.get(
+                    "raw_dataset"
+                ) is not None and process_result.process_type in {
+                    ProcessType.PYTHON,
+                    ProcessType.VISUALIZATION,
+                }:
                     state["next_step"] = "generate_python_code"
                 else:
                     state["next_step"] = "generate_sql"

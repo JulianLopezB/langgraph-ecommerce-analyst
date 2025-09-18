@@ -1,19 +1,21 @@
 """State management for the LangGraph Data Analysis Agent."""
-from typing import Optional, List, Dict, Any, TypedDict
+
+from typing import Any, Dict, List, Optional, TypedDict
 
 import pandas as pd
 
 from domain.entities import (
-    ProcessType,
-    GeneratedCode,
-    ValidationResults,
-    ExecutionResults,
     ConversationMessage,
+    ExecutionResults,
+    GeneratedCode,
+    ProcessType,
+    ValidationResults,
 )
 
 
 class AnalysisState(TypedDict, total=False):
     """Main state object for the LangGraph agent."""
+
     # Input Processing
     user_query: str
     process_type: ProcessType
@@ -70,5 +72,5 @@ def create_initial_state(
         session_id=session_id,
         conversation_history=list(conversation_history) if conversation_history else [],
         next_step="understand_query",
-        workflow_complete=False
+        workflow_complete=False,
     )
