@@ -2,6 +2,8 @@
 
 An AI-powered data analysis agent that processes e-commerce data from Google BigQuery and generates actionable business insights through natural language interactions.
 
+> **Recent Updates**: Enhanced DevOps strategy with Docker Compose orchestration, centralized dataset configuration management, and improved workflow architecture for better scalability and maintainability.
+
 ## 🚀 Features
 
 - **Natural Language Queries**: Ask business questions in plain English
@@ -21,8 +23,8 @@ An AI-powered data analysis agent that processes e-commerce data from Google Big
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/JulianLopezB/langgraph-ecommerce-analyst.git
-   cd langgraph-ecommerce-analyst
+   git clone <your-repository-url>
+   cd <your-project-directory>
    ```
 
 2. **Install dependencies**:
@@ -39,7 +41,7 @@ An AI-powered data analysis agent that processes e-commerce data from Google Big
    # Google Cloud Configuration (optional)
    GOOGLE_CLOUD_PROJECT=your_gcp_project_id
    
-   # BigQuery Configuration (optional)
+   # BigQuery Configuration (optional - uses centralized dataset config)
    BQ_DATASET_ID=bigquery-public-data.thelook_ecommerce
 
    # Deployment Environment (optional: development|production)
@@ -74,7 +76,11 @@ An AI-powered data analysis agent that processes e-commerce data from Google Big
     🔍 Your question: Forecast sales for the next 3 months
     ```
 
-## 🐳 Docker Compose
+## 🐳 DevOps & Deployment
+
+### Docker Compose Strategy
+
+The project implements a comprehensive DevOps strategy with Docker Compose for local development and testing, providing a complete containerized environment that mirrors production setups.
 
 Run the application alongside its dependencies using Docker Compose.
 
@@ -91,6 +97,13 @@ Run the application alongside its dependencies using Docker Compose.
    docker-compose down
    ```
 
+**DevOps Features:**
+- **Service Orchestration**: Coordinated startup of application, database, and messaging services
+- **Network Isolation**: Services communicate through a dedicated `app-network`
+- **Data Persistence**: Persistent volumes for `db_data` and `rabbitmq_data`
+- **Development Workflow**: TTY allocation for interactive CLI usage during development
+- **Environment Consistency**: Identical configuration between development and production environments
+
 ## 🐳 Docker
 
 The Docker image installs system build tools and pre-builds CmdStan so Prophet-based
@@ -99,13 +112,13 @@ forecasting works out of the box.
 Build the image:
 
 ```bash
- docker build -t langgraph-ecommerce-analyst .
+ docker build -t langgraph-data-analyst .
 ```
 
 Run the container:
 
 ```bash
- docker run --rm -it -e GEMINI_API_KEY=your_gemini_api_key_here langgraph-ecommerce-analyst
+ docker run --rm -it -e GEMINI_API_KEY=your_gemini_api_key_here langgraph-data-analyst
 ```
 
 ## 📊 Example Queries
@@ -132,11 +145,11 @@ Run the container:
 
 ## 🏗️ Architecture
 
-The system follows a modular, layered architecture:
+The system follows a modular, layered architecture with recent improvements focusing on workflow orchestration and centralized configuration management:
 
 ### Core Components
 
-- **LangGraph Agent**: Orchestrates the analysis workflow
+- **LangGraph Workflow**: Orchestrates the analysis workflow
 - **Query Understanding**: Classifies user intent and extracts requirements
 - **SQL Generator**: Creates optimized BigQuery queries
 - **Code Generator**: Generates Python analysis code dynamically
@@ -154,6 +167,16 @@ The system follows a modular, layered architecture:
 6. **Insights Generation** → User Output
 
 ## 🔧 Configuration
+
+### Centralized Dataset Configuration
+
+The system uses a centralized configuration approach for managing BigQuery datasets and connection settings. This ensures consistent data access patterns across all components and simplifies environment management.
+
+**Key Features:**
+- **Default Dataset**: Uses the public `bigquery-public-data.thelook_ecommerce` dataset for demonstrations
+- **Custom Projects**: Easily configurable for your own BigQuery projects
+- **Environment-Specific Settings**: Different configurations for development and production environments
+- **Connection Pooling**: Optimized connection management for better performance
 
 ### Execution Limits
 ```python
