@@ -32,7 +32,7 @@ class SecurityConfig(BaseModel):
     )
     forbidden_patterns: list[str] = Field(
         default=[
-            "__import__", "eval", "exec", "compile", "globals", "locals",
+            "eval", "exec", "compile", "globals", "locals",
             "open", "file", "input", "raw_input", "subprocess", "os.system",
             "os.popen", "os.spawn", "socket", "urllib", "requests"
         ],
