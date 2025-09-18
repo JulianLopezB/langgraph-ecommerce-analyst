@@ -18,7 +18,7 @@ def create_sql_generation_prompt(
     dimensions_info = _format_dimensions_for_prompt(
         data_understanding.grouping_dimensions
     )
-    schema_details = _format_detailed_schema(data_understanding)
+    schema_details = _format_detailed_schema(data_understanding, dataset_id)
 
     return f"""
 You are an expert SQL developer specializing in BigQuery. Generate an optimized SQL query.
@@ -47,7 +47,7 @@ JOIN STRATEGY:
 1. **CRITICAL - Table Usage**:
    - ONLY use the 4 existing tables shown in the schema above
    - Do NOT create new tables, CTEs with made-up names, or reference non-existent tables
-   - Every table reference must include full path: `{DATASET_ID}.TABLE_NAME`
+   - Every table reference must include full path: `{dataset_id}.TABLE_NAME`
 
 2. **Performance**: Optimize for cost and speed
    - Use appropriate WHERE clauses for filtering
@@ -146,8 +146,8 @@ SELECT
     p.name as product_name,
     p.brand,
     SUM(oi.sale_price) as total_revenue
-FROM `{DATASET_ID}.order_items` oi
-JOIN `{DATASET_ID}.products` p
+FROM `{dataset_id}.order_items` oi
+JOIN `{dataset_id}.products` p
     ON oi.product_id = p.id
 GROUP BY p.name, p.brand
 ORDER BY total_revenue DESC
@@ -161,8 +161,8 @@ SELECT
     DATE_DIFF(CURRENT_DATE(), DATE(MAX(o.created_at)), DAY) as recency_days,
     COUNT(DISTINCT o.order_id) as frequency_orders,
     SUM(oi.sale_price) as monetary_value
-FROM `{DATASET_ID}.orders` o
-JOIN `{DATASET_ID}.order_items` oi
+FROM `{dataset_id}.orders` o
+JOIN `{dataset_id}.order_items` oi
     ON o.order_id = oi.order_id
 GROUP BY o.user_id
 LIMIT 1000
@@ -175,8 +175,8 @@ SELECT
     SUM(oi.sale_price) as monthly_revenue,
     COUNT(DISTINCT o.order_id) as monthly_orders,
     COUNT(DISTINCT o.user_id) as unique_customers
-FROM `{DATASET_ID}.orders` o
-JOIN `{DATASET_ID}.order_items` oi
+FROM `{dataset_id}.orders` o
+JOIN `{dataset_id}.order_items` oi
     ON o.order_id = oi.order_id
 WHERE o.created_at >= DATE_SUB(CURRENT_DATE(), INTERVAL 18 MONTH)
 GROUP BY DATE_TRUNC(DATE(o.created_at), MONTH)
@@ -196,8 +196,8 @@ SELECT
     EXTRACT(QUARTER FROM DATE(o.created_at)) as quarter,
     SUM(oi.sale_price) as quarterly_revenue,
     COUNT(DISTINCT o.order_id) as quarterly_orders
-FROM `{DATASET_ID}.orders` o
-JOIN `{DATASET_ID}.order_items` oi
+FROM `{dataset_id}.orders` o
+JOIN `{dataset_id}.order_items` oi
     ON o.order_id = oi.order_id
 WHERE o.created_at >= DATE_SUB(CURRENT_DATE(), INTERVAL 2 YEAR)
 GROUP BY EXTRACT(YEAR FROM DATE(o.created_at)), EXTRACT(QUARTER FROM DATE(o.created_at))
@@ -219,16 +219,16 @@ SELECT
         WHEN DATE_DIFF(CURRENT_DATE(), DATE(MAX(o.created_at)), DAY) > 90 THEN 'At Risk'
         ELSE 'Active'
     END as churn_status
-FROM `{DATASET_ID}.users` u
-LEFT JOIN `{DATASET_ID}.orders` o ON u.id = o.user_id
-LEFT JOIN `{DATASET_ID}.order_items` oi ON o.order_id = oi.order_id
+FROM `{dataset_id}.users` u
+LEFT JOIN `{dataset_id}.orders` o ON u.id = o.user_id
+LEFT JOIN `{dataset_id}.order_items` oi ON o.order_id = oi.order_id
 GROUP BY u.id, u.first_name, u.last_name
 ORDER BY days_since_last_order DESC
 LIMIT 1000
 ```
 
 Generate a BigQuery SQL query that directly answers the user's question.
-""".format(DATASET_ID=dataset_id)
+"""
 
 
 def _format_tables_for_prompt(tables: List) -> str:
@@ -270,32 +270,37 @@ def _format_dimensions_for_prompt(dimensions: List[ColumnAnalysis]) -> str:
     return "\n".join(dim_descriptions)
 
 
-def _format_detailed_schema(data_understanding: DataUnderstanding) -> str:
+def _format_detailed_schema(data_understanding: DataUnderstanding, dataset_id: str = None) -> str:
     """Format detailed schema information showing exact column names for each table."""
+    # Use a default dataset_id if none provided (for backwards compatibility)
+    if dataset_id is None:
+        from infrastructure.config import DEFAULT_DATASET_ID
+        dataset_id = DEFAULT_DATASET_ID
+    
     schema_template = f"""
 CRITICAL: Use ONLY these 4 existing tables. Do NOT create or reference any other tables:
 
-1. `{DATASET_ID}.products` (alias: p)
+1. `{dataset_id}.products` (alias: p)
    - id (INTEGER) - Product ID
    - name (STRING) - Product name
    - brand (STRING) - Product brand
    - category (STRING) - Product category
    - retail_price (FLOAT) - Product retail price
 
-2. `{DATASET_ID}.order_items` (alias: oi)
+2. `{dataset_id}.order_items` (alias: oi)
    - id (INTEGER) - Order item ID
    - order_id (INTEGER) - Order ID
    - product_id (INTEGER) - Links to products.id
    - sale_price (FLOAT) - ACTUAL REVENUE AMOUNT (use this for revenue calculations)
    - inventory_item_id (INTEGER) - Inventory item
 
-3. `{DATASET_ID}.orders` (alias: o)
+3. `{dataset_id}.orders` (alias: o)
    - order_id (INTEGER) - Order ID
    - user_id (INTEGER) - Customer ID
    - status (STRING) - Order status
    - created_at (TIMESTAMP) - Order date (use DATE(o.created_at) for date operations)
 
-4. `{DATASET_ID}.users` (alias: u)
+4. `{dataset_id}.users` (alias: u)
    - id (INTEGER) - User ID
    - first_name (STRING) - User first name
    - last_name (STRING) - User last name
@@ -304,7 +309,7 @@ CRITICAL: Use ONLY these 4 existing tables. Do NOT create or reference any other
 
 CRITICAL CONSTRAINTS:
 - ONLY use tables 1-4 above. Do NOT create tables like "ChurnAnalysis", "CustomerMetrics", etc.
-- ALL table references must include full dataset path: `{DATASET_ID}.TABLE_NAME`
+- ALL table references must include full dataset path: `{dataset_id}.TABLE_NAME`
 - Use WITH clauses for complex calculations, but still reference the 4 base tables only
 - For churn analysis: calculate customer metrics using existing tables, don't create new ones
 
@@ -313,6 +318,6 @@ ANALYSIS PATTERNS:
 - Dates: DATE(o.created_at) to convert TIMESTAMP to DATE
 - Customer behavior: Join users with orders and order_items
 - Churn analysis: Calculate days since last order using existing orders table
-""".format(DATASET_ID=dataset_id)
+"""
     return schema_template
 

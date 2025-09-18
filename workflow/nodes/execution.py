@@ -4,16 +4,12 @@ from typing import Dict, Any
 
 import pandas as pd
 
-from infrastructure.persistence import data_repository
 from infrastructure.execution import validator, secure_executor
 from infrastructure.logging import get_logger
-from infrastructure.llm import llm_client
 from workflow.state import AnalysisState
 from domain.entities import ConversationMessage
 
 logger = get_logger(__name__)
-data_repo = data_repository
-llm_service = llm_client
 
 
 def execute_sql(state: AnalysisState) -> AnalysisState:
@@ -21,7 +17,16 @@ def execute_sql(state: AnalysisState) -> AnalysisState:
     logger.info("Executing SQL query")
 
     try:
-        df = data_repo.execute_query(state["sql_query"])
+        # Import data_repository dynamically to avoid None reference
+        from infrastructure.persistence import data_repository
+        
+        if data_repository is None:
+            logger.error("Data repository is not initialized")
+            state["error_context"] = {"sql_execution_error": "Data repository not available"}
+            state["next_step"] = "handle_error"
+            return state
+            
+        df = data_repository.execute_query(state["sql_query"])
         state["raw_dataset"] = df
 
         # Store dataset as an artifact for future reference
@@ -144,7 +149,16 @@ def generate_python_code(state: AnalysisState) -> AnalysisState:
             "dataframe_name": state.get("active_dataframe", "df"),
         }
 
-        python_code = llm_service.generate_adaptive_python_code(analysis_context)
+        # Import LLM client dynamically to avoid None reference
+        from infrastructure.llm import llm_client
+        
+        if llm_client is None:
+            logger.error("LLM client is not initialized")
+            state["error_context"] = {"code_generation_error": "LLM client not available"}
+            state["next_step"] = "handle_error"
+            return state
+            
+        python_code = llm_client.generate_adaptive_python_code(analysis_context)
 
         generated_code = state["generated_code"]
         if generated_code is None:
@@ -363,10 +377,17 @@ def synthesize_results(state: AnalysisState) -> AnalysisState:
                 "python_results"
             ]
 
-        insights = llm_service.generate_insights(
-            analysis_results,
-            state["user_query"],
-        )
+        # Import LLM client dynamically to avoid None reference
+        from infrastructure.llm import llm_client
+        
+        if llm_client is None:
+            logger.error("LLM client is not initialized")
+            insights = "Analysis completed, but insights generation is not available due to LLM client initialization failure."
+        else:
+            insights = llm_client.generate_insights(
+                analysis_results,
+                state["user_query"],
+            )
 
         state["insights"] = insights
 

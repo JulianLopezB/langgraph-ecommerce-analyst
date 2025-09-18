@@ -15,7 +15,6 @@ from agents.sql_validation import (
 )
 import os
 from infrastructure.logging import get_logger
-from infrastructure.llm import llm_client
 from tracing.langsmith_setup import tracer, trace_agent_operation
 
 logger = get_logger(__name__)
@@ -38,7 +37,13 @@ class SQLGenerationAgent:
 
     def __init__(self, dataset_id: str, max_results: int, google_api_key: str | None = None):
         """Initialize the SQL generation agent."""
-        self.llm_service = llm_client
+        # Import LLM client dynamically to avoid None reference
+        from infrastructure.llm import llm_client
+        if llm_client is None:
+            logger.error("LLM client is not initialized")
+            self.llm_service = None
+        else:
+            self.llm_service = llm_client
         self.dataset_id = dataset_id
         self.max_results = max_results
 
@@ -89,6 +94,8 @@ class SQLGenerationAgent:
                 )
                 
                 # Generate SQL using AI
+                if self.llm_service is None:
+                    raise Exception("LLM service is not available")
                 response = self.llm_service.generate_text(prompt, temperature=0.1)  # Low temp for precision
                 
                 # Parse the response
