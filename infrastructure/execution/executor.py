@@ -1,10 +1,3 @@
-"""Secure execution environment implementation.
-
-Dynamic imports are disabled; the ``__import__`` builtin is intentionally
-omitted from the execution environment. Any additional libraries must be
-preloaded into the sandbox before execution.
-"""
-
 import io
 import resource
 import signal
@@ -197,7 +190,6 @@ class SecureExecutor(CodeExecutor):
             "IndexError",
             "AttributeError",
         }
-        # Note: `__import__` is intentionally excluded to block runtime imports.
 
         safe_globals = {
             "__builtins__": {

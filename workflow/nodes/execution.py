@@ -6,17 +6,12 @@ from typing import Any, Dict
 import pandas as pd
 
 from domain.entities import ConversationMessage
-from infrastructure.execution import secure_executor, validator
-from infrastructure.llm import llm_client
-from infrastructure.logging import get_logger
-from infrastructure.persistence import data_repository
-from workflow.state import AnalysisState
 from domain.pipeline import CodeGenerationPipeline, create_code_generation_pipeline
-
+from infrastructure import execution, llm, persistence
+from infrastructure.logging import get_logger
+from workflow.state import AnalysisState
 
 logger = get_logger(__name__)
-data_repo = data_repository
-llm_service = llm_client
 
 # Initialize the structured code generation pipeline
 _pipeline_instance = None
@@ -27,7 +22,9 @@ def get_code_generation_pipeline() -> CodeGenerationPipeline:
     global _pipeline_instance
     if _pipeline_instance is None:
         _pipeline_instance = create_code_generation_pipeline(
-            llm_client=llm_service, validator=validator, executor=secure_executor
+            llm_client=llm.llm_client,
+            validator=execution.validator,
+            executor=execution.secure_executor,
         )
         logger.info("Initialized structured code generation pipeline")
     return _pipeline_instance
@@ -38,7 +35,7 @@ def execute_sql(state: AnalysisState) -> AnalysisState:
     logger.info("Executing SQL query")
 
     try:
-        df = data_repo.execute_query(state["sql_query"])
+        df = persistence.data_repository.execute_query(state["sql_query"])
         state["raw_dataset"] = df
 
         # Store dataset as an artifact for future reference
@@ -273,7 +270,9 @@ def validate_code(state: AnalysisState) -> AnalysisState:
         if not state["generated_code"]:
             raise ValueError("No code to validate")
 
-        validation_result = validator.validate(state["generated_code"].code_content)
+        validation_result = execution.validator.validate(
+            state["generated_code"].code_content
+        )
         state["validation_results"] = validation_result
 
         state["generated_code"].validation_passed = validation_result.is_valid
@@ -338,7 +337,7 @@ def execute_code(state: AnalysisState) -> AnalysisState:
         if df_name != "df":
             context["df"] = state["raw_dataset"]
 
-        execution_results = secure_executor.execute_code(
+        execution_results = execution.secure_executor.execute_code(
             state["generated_code"].code_content,
             context,
         )
@@ -465,7 +464,7 @@ def synthesize_results(state: AnalysisState) -> AnalysisState:
                 "python_results"
             ]
 
-        insights = llm_service.generate_insights(
+        insights = llm.llm_client.generate_insights(
             analysis_results,
             state["user_query"],
         )
