@@ -9,6 +9,7 @@ import google.generativeai as genai
 from google.generativeai.types import HarmBlockThreshold, HarmCategory
 
 from infrastructure.logging import get_logger
+from infrastructure.code_cleaning import create_ast_cleaner
 from tracing.langsmith_setup import trace_llm_operation, tracer
 
 from .base import LLMClient
@@ -50,6 +51,9 @@ class GeminiClient(LLMClient):
             model_name=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
             safety_settings=self.safety_settings,
         )
+        
+        # Initialize AST-based code cleaner
+        self.code_cleaner = create_ast_cleaner()
 
         logger.info("Gemini service initialized")
 
@@ -265,7 +269,27 @@ class GeminiClient(LLMClient):
             return insights
 
     def _clean_python_code(self, code: str) -> str:
-        """Clean Python code by removing markdown formatting and fixing syntax issues."""
+        """Clean Python code using AST-based processing to avoid syntax errors."""
+        try:
+            cleaned_code, metadata = self.code_cleaner.clean_code(code)
+            
+            if metadata['success']:
+                logger.debug(f"AST-based cleaning successful: {metadata['original_lines']} -> {metadata['cleaned_lines']} lines")
+                if metadata['imports_removed']:
+                    logger.debug(f"Removed imports: {metadata['imports_removed']}")
+                return cleaned_code
+            else:
+                logger.warning(f"AST-based cleaning failed: {metadata['errors']}")
+                # Fallback to basic markdown removal only
+                return self._basic_markdown_cleanup(code)
+                
+        except Exception as e:
+            logger.error(f"Code cleaning failed: {e}", exc_info=True)
+            # Fallback to basic cleanup
+            return self._basic_markdown_cleanup(code)
+    
+    def _basic_markdown_cleanup(self, code: str) -> str:
+        """Basic fallback cleanup that only removes markdown formatting."""
         # Remove markdown code blocks
         if code.startswith("```python"):
             code = code[9:]
@@ -274,43 +298,6 @@ class GeminiClient(LLMClient):
 
         if code.endswith("```"):
             code = code[:-3]
-
-        # Remove any leading/trailing whitespace
-        code = code.strip()
-
-        # Fix unterminated string literals by removing incomplete lines
-        lines = code.split("\n")
-        cleaned_lines = []
-
-        for line in lines:
-            # Skip lines that might have unterminated strings
-            if line.count('"') % 2 != 0 and not line.strip().startswith("#"):
-                # Try to fix by removing trailing content
-                if '"' in line:
-                    quote_pos = line.rfind('"')
-                    line = line[: quote_pos + 1]
-
-            cleaned_lines.append(line)
-
-        code = "\n".join(cleaned_lines)
-
-        # Remove any explanation text before the first import or assignment
-        lines = code.split("\n")
-        code_start_idx = 0
-
-        for i, line in enumerate(lines):
-            line = line.strip()
-            if (
-                line.startswith("import ")
-                or line.startswith("from ")
-                or line.startswith("#")
-                or "=" in line
-            ):
-                code_start_idx = i
-                break
-
-        if code_start_idx > 0:
-            code = "\n".join(lines[code_start_idx:])
 
         return code.strip()
 

@@ -31,6 +31,9 @@ plotly>=5.15.0
 python-dotenv>=1.0.0
 pydantic>=2.0.0
 
+# AST-based code processing
+astor>=0.8.1
+
 # Note: Security validation handled by built-in ast module
 
 # CLI and User Interface

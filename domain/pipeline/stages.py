@@ -9,6 +9,7 @@ try:
     from infrastructure.execution.executor import SecureExecutor
     from infrastructure.execution.validator import CodeValidator, ValidationResult
     from infrastructure.llm.base import LLMClient
+    from infrastructure.code_cleaning import create_ast_cleaner
 except ImportError:
     # Fallback classes for testing
     class GeneratedCode:
@@ -156,6 +157,7 @@ class CodeCleaningStage(PipelineStage[str]):
     def __init__(self):
         """Initialize code cleaning stage."""
         super().__init__("code_cleaning", PipelineStageType.CLEANING)
+        self.code_cleaner = create_ast_cleaner()
 
     def _validate_input(self, context: PipelineContext) -> Optional[str]:
         """Validate that we have code to clean."""
@@ -164,29 +166,40 @@ class CodeCleaningStage(PipelineStage[str]):
         return None
 
     def _execute_stage(self, context: PipelineContext) -> StageResult[str]:
-        """Clean and format the generated code."""
+        """Clean and format the generated code using AST-based processing."""
         try:
             original_code = context.code_content
-            cleaned_code = self._clean_python_code(original_code)
+            cleaned_code, cleaning_metadata = self.code_cleaner.clean_code(original_code)
 
             # Update context
             context.cleaned_code = cleaned_code
 
-            # Collect metrics
+            # Collect comprehensive metrics from AST cleaner
             stage_metrics = {
                 "original_length": len(original_code),
                 "cleaned_length": len(cleaned_code),
-                "lines_removed": original_code.count("\n") - cleaned_code.count("\n"),
-                "markdown_blocks_removed": original_code.count("```")
-                - cleaned_code.count("```"),
+                "original_lines": cleaning_metadata.get('original_lines', 0),
+                "cleaned_lines": cleaning_metadata.get('cleaned_lines', 0),
+                "syntax_valid": cleaning_metadata.get('syntax_valid', False),
+                "imports_removed": len(cleaning_metadata.get('imports_removed', [])),
+                "formatting_applied": cleaning_metadata.get('formatting_applied', False),
+                "cleaning_success": cleaning_metadata.get('success', False),
             }
 
-            self.logger.info(
-                f"Cleaned code: {stage_metrics['lines_removed']} lines removed"
-            )
+            if cleaning_metadata.get('success'):
+                self.logger.info(
+                    f"AST-based cleaning successful: {stage_metrics['original_lines']} -> {stage_metrics['cleaned_lines']} lines"
+                )
+            else:
+                self.logger.warning(
+                    f"AST-based cleaning had issues: {cleaning_metadata.get('errors', [])}"
+                )
 
             return StageResult[str](
-                success=True, data=cleaned_code, stage_metrics=stage_metrics
+                success=True, 
+                data=cleaned_code, 
+                stage_metrics=stage_metrics,
+                metadata={"cleaning_details": cleaning_metadata}
             )
 
         except Exception as e:
@@ -199,61 +212,6 @@ class CodeCleaningStage(PipelineStage[str]):
                 error_context={"cleaning_error": str(e)},
             )
 
-    def _clean_python_code(self, code: str) -> str:
-        """Clean Python code by removing markdown and formatting issues."""
-        # Remove markdown code blocks
-        code = re.sub(r"```python\s*\n?", "", code)
-        code = re.sub(r"```\s*\n?", "", code)
-        # Remove leading/trailing whitespace
-        code = code.strip()
-
-        # Remove any explanatory text before the first import or code line
-        lines = code.split("\n")
-        cleaned_lines = []
-        code_started = False
-
-        for line in lines:
-            stripped = line.strip()
-
-            # Skip empty lines before code starts
-            if not code_started and not stripped:
-                continue
-                # Code starts with import, from, or other Python statements
-            if not code_started and (
-                stripped.startswith(
-                    (
-                        "import ",
-                        "from ",
-                        "def ",
-                        "class ",
-                        "if ",
-                        "for ",
-                        "while ",
-                        "try:",
-                        "with ",
-                    )
-                )
-                or stripped.startswith(("#", '"""', "'''"))
-                or any(  # Comments or docstrings
-                    char in stripped for char in ["=", "(", "[", "{"]
-                )
-                or stripped.endswith(  # Assignments or data structures
-                    ":"
-                )  # Control structures
-            ):
-                code_started = True
-
-            if code_started:
-                cleaned_lines.append(line)
-
-        cleaned_code = "\n".join(cleaned_lines)
-
-        # Ensure proper line endings
-        cleaned_code = re.sub(
-            r"\n\s*\n\s*\n", "\n\n", cleaned_code
-        )  # Remove excessive blank lines
-
-        return cleaned_code.strip()
 
 
 class CodeValidationStage(PipelineStage[ValidationResult]):
