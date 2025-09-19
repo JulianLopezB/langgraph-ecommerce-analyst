@@ -346,6 +346,7 @@ class TestCodeGenerationPipeline:
             validation_time=0.1,
             security_score=1.0,
         )
+        validator.get_allowed_imports.return_value = ["pandas", "numpy"]
         return validator
 
     @pytest.fixture
@@ -360,6 +361,8 @@ class TestCodeGenerationPipeline:
             stdout="Analysis results printed",
             stderr="",
         )
+        executor.max_execution_time = 30
+        executor.max_memory_mb = 512
         return executor
 
     @pytest.fixture
@@ -542,11 +545,9 @@ class TestPipelineExtensibility:
         """Mock LLM client."""
         client = Mock(spec=LLMClient)
         client.generate_code.return_value = GeneratedCode(
-            code="print('test')",
-            explanation="Test code generation",
-            template_used="basic_analysis",
-            confidence_score=0.9,
+            code_content="print('test')", template_used="basic_analysis"
         )
+        client.generate_adaptive_python_code.return_value = "print('test')"
         return client
 
     @pytest.fixture
@@ -634,11 +635,9 @@ class TestErrorPropagationImprovements:
         """Mock LLM client."""
         client = Mock(spec=LLMClient)
         client.generate_code.return_value = GeneratedCode(
-            code="print('test')",
-            explanation="Test code generation",
-            template_used="basic_analysis",
-            confidence_score=0.9,
+            code_content="print('test')", template_used="basic_analysis"
         )
+        client.generate_adaptive_python_code.return_value = "print('test')"
         return client
 
     @pytest.fixture
@@ -748,11 +747,9 @@ class TestPipelineHealthAndIntrospection:
         """Mock LLM client."""
         client = Mock(spec=LLMClient)
         client.generate_code.return_value = GeneratedCode(
-            code="print('test')",
-            explanation="Test code generation",
-            template_used="basic_analysis",
-            confidence_score=0.9,
+            code_content="print('test')", template_used="basic_analysis"
         )
+        client.generate_adaptive_python_code.return_value = "print('test')"
         return client
 
     @pytest.fixture
