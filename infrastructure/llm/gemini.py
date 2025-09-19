@@ -1,15 +1,23 @@
 """Google Gemini implementation of :class:`LLMClient`."""
 
+import json
 import os
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Type, TypeVar
+
+from pydantic import BaseModel
+
+T = TypeVar("T", bound=BaseModel)
 
 import google.generativeai as genai
 from google.generativeai.types import HarmBlockThreshold, HarmCategory
 
-from infrastructure.logging import get_logger
+# LangChain imports for structured output
+from langchain_google_genai import ChatGoogleGenerativeAI
+
 from infrastructure.code_cleaning import create_ast_cleaner
+from infrastructure.logging import get_logger
 from tracing.langsmith_setup import trace_llm_operation, tracer
 
 from .base import LLMClient
@@ -51,7 +59,7 @@ class GeminiClient(LLMClient):
             model_name=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
             safety_settings=self.safety_settings,
         )
-        
+
         # Initialize AST-based code cleaner
         self.code_cleaner = create_ast_cleaner()
 
@@ -272,22 +280,24 @@ class GeminiClient(LLMClient):
         """Clean Python code using AST-based processing to avoid syntax errors."""
         try:
             cleaned_code, metadata = self.code_cleaner.clean_code(code)
-            
-            if metadata['success']:
-                logger.debug(f"AST-based cleaning successful: {metadata['original_lines']} -> {metadata['cleaned_lines']} lines")
-                if metadata['imports_removed']:
+
+            if metadata["success"]:
+                logger.debug(
+                    f"AST-based cleaning successful: {metadata['original_lines']} -> {metadata['cleaned_lines']} lines"
+                )
+                if metadata["imports_removed"]:
                     logger.debug(f"Removed imports: {metadata['imports_removed']}")
                 return cleaned_code
             else:
                 logger.warning(f"AST-based cleaning failed: {metadata['errors']}")
                 # Fallback to basic markdown removal only
                 return self._basic_markdown_cleanup(code)
-                
+
         except Exception as e:
             logger.error(f"Code cleaning failed: {e}", exc_info=True)
             # Fallback to basic cleanup
             return self._basic_markdown_cleanup(code)
-    
+
     def _basic_markdown_cleanup(self, code: str) -> str:
         """Basic fallback cleanup that only removes markdown formatting."""
         # Remove markdown code blocks
@@ -300,6 +310,137 @@ class GeminiClient(LLMClient):
             code = code[:-3]
 
         return code.strip()
+
+    def generate_structured(
+        self,
+        prompt: str,
+        schema: Type[T],
+        temperature: float = 0.1,
+        max_tokens: int = 2048,
+    ) -> T:
+        """Generate structured output using LangChain's Google Gemini integration."""
+        start_time = time.time()
+
+        with trace_llm_operation(
+            name="gemini_generate_structured",
+            model="gemini-1.5-flash",
+            temperature=temperature,
+            max_tokens=max_tokens,
+            prompt_length=len(prompt),
+            schema_name=schema.__name__,
+        ):
+            try:
+                # Use LangChain's Google Gemini integration (same as sql_validation.py)
+                langchain_model = ChatGoogleGenerativeAI(
+                    model="gemini-1.5-flash",
+                    google_api_key=self.api_key,
+                    temperature=temperature,
+                    max_output_tokens=max_tokens,
+                )
+
+                # LangChain handles Pydantic schemas natively
+                structured_model = langchain_model.with_structured_output(schema)
+                response = structured_model.invoke(prompt)
+
+                response_time = time.time() - start_time
+                tokens_used = self._estimate_tokens(prompt + str(response))
+
+                # Log success metrics
+                tracer.log_metrics(
+                    {
+                        "structured_generation_success": True,
+                        "response_time": response_time,
+                        "tokens_used": tokens_used,
+                        "schema_validation_success": True,
+                        "langchain_structured_output": True,
+                    }
+                )
+
+                logger.debug(
+                    f"LangChain structured output successful for {schema.__name__}"
+                )
+                return response
+
+            except Exception as e:
+                logger.error(f"LangChain structured output failed: {e}")
+                logger.warning("Falling back to manual JSON prompting")
+
+                # Fallback to manual prompting approach
+                try:
+                    return self._generate_with_manual_prompting(
+                        prompt, schema, temperature, max_tokens
+                    )
+                except Exception as e2:
+                    logger.error(f"Manual prompting also failed: {e2}")
+                    tracer.log_metrics(
+                        {"structured_generation_success": False, "error": str(e2)}
+                    )
+                    return self._create_fallback_response(schema)
+
+    def _generate_with_manual_prompting(
+        self, prompt: str, schema: Type[T], temperature: float, max_tokens: int
+    ) -> T:
+        """Fallback to manual JSON prompting when native structured output fails."""
+        try:
+            # Create manual JSON prompt
+            manual_prompt = f"""{prompt}
+
+--- RESPONSE FORMAT ---
+Respond with a valid JSON object matching this structure. Do not include markdown formatting.
+
+Example structure for {schema.__name__}:
+{self._get_schema_example(schema)}
+"""
+
+            response = self.generate_text(
+                manual_prompt, temperature=temperature, max_tokens=max_tokens
+            )
+
+            # Clean and parse response
+            content = response.content.strip()
+            content = self._clean_json_response(content)
+
+            json_data = json.loads(content)
+            return schema(**json_data)
+
+        except Exception as e:
+            logger.error(f"Manual prompting also failed: {e}")
+            return self._create_fallback_response(schema)
+
+    def _get_schema_example(self, schema: Type[BaseModel]) -> str:
+        """Get a simple example structure for the schema."""
+        try:
+            # Create a sample instance to show structure
+            sample = schema()
+            return json.dumps(sample.model_dump(), indent=2)
+        except Exception:
+            return '{"error": "Unable to generate example"}'
+
+    def _clean_json_response(self, content: str) -> str:
+        """Clean JSON response by removing markdown formatting."""
+        content = content.strip()
+
+        # Remove markdown code blocks
+        if content.startswith("```json"):
+            content = content[7:]
+        elif content.startswith("```"):
+            content = content[3:]
+
+        if content.endswith("```"):
+            content = content[:-3]
+
+        return content.strip()
+
+    def _create_fallback_response(self, schema: Type[T]) -> T:
+        """Create a minimal fallback response when structured generation fails."""
+        try:
+            # Create a minimal valid instance with default values
+            return schema()
+        except Exception as e:
+            logger.error(f"Error creating fallback response for {schema.__name__}: {e}")
+            raise RuntimeError(
+                f"Unable to create fallback response for {schema.__name__}: {e}"
+            )
 
     def _estimate_tokens(self, text: str) -> int:
         """Estimate token count (rough approximation)."""

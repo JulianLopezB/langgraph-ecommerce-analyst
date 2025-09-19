@@ -1,5 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, Type, TypeVar
+
+from pydantic import BaseModel
+
+# Type variable for generic Pydantic model types
+T = TypeVar("T", bound=BaseModel)
 
 
 class LLMClient(ABC):
@@ -22,4 +27,15 @@ class LLMClient(ABC):
         self, analysis_results: Dict[str, Any], original_query: str
     ) -> str:
         """Generate insights from analysis results."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def generate_structured(
+        self,
+        prompt: str,
+        schema: Type[T],
+        temperature: float = 0.1,
+        max_tokens: int = 2048,
+    ) -> T:
+        """Generate structured output based on a Pydantic schema."""
         raise NotImplementedError
