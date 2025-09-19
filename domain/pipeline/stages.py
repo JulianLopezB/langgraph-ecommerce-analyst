@@ -6,10 +6,10 @@ from typing import Any, Dict, Optional
 
 try:
     from domain.entities import ExecutionResults, GeneratedCode
+    from infrastructure.code_cleaning import create_ast_cleaner
     from infrastructure.execution.executor import SecureExecutor
     from infrastructure.execution.validator import CodeValidator, ValidationResult
     from infrastructure.llm.base import LLMClient
-    from infrastructure.code_cleaning import create_ast_cleaner
 except ImportError:
     # Fallback classes for testing
     class GeneratedCode:
@@ -169,7 +169,9 @@ class CodeCleaningStage(PipelineStage[str]):
         """Clean and format the generated code using AST-based processing."""
         try:
             original_code = context.code_content
-            cleaned_code, cleaning_metadata = self.code_cleaner.clean_code(original_code)
+            cleaned_code, cleaning_metadata = self.code_cleaner.clean_code(
+                original_code
+            )
 
             # Update context
             context.cleaned_code = cleaned_code
@@ -178,15 +180,17 @@ class CodeCleaningStage(PipelineStage[str]):
             stage_metrics = {
                 "original_length": len(original_code),
                 "cleaned_length": len(cleaned_code),
-                "original_lines": cleaning_metadata.get('original_lines', 0),
-                "cleaned_lines": cleaning_metadata.get('cleaned_lines', 0),
-                "syntax_valid": cleaning_metadata.get('syntax_valid', False),
-                "imports_removed": len(cleaning_metadata.get('imports_removed', [])),
-                "formatting_applied": cleaning_metadata.get('formatting_applied', False),
-                "cleaning_success": cleaning_metadata.get('success', False),
+                "original_lines": cleaning_metadata.get("original_lines", 0),
+                "cleaned_lines": cleaning_metadata.get("cleaned_lines", 0),
+                "syntax_valid": cleaning_metadata.get("syntax_valid", False),
+                "imports_removed": len(cleaning_metadata.get("imports_removed", [])),
+                "formatting_applied": cleaning_metadata.get(
+                    "formatting_applied", False
+                ),
+                "cleaning_success": cleaning_metadata.get("success", False),
             }
 
-            if cleaning_metadata.get('success'):
+            if cleaning_metadata.get("success"):
                 self.logger.info(
                     f"AST-based cleaning successful: {stage_metrics['original_lines']} -> {stage_metrics['cleaned_lines']} lines"
                 )
@@ -196,10 +200,9 @@ class CodeCleaningStage(PipelineStage[str]):
                 )
 
             return StageResult[str](
-                success=True, 
-                data=cleaned_code, 
+                success=True,
+                data=cleaned_code,
                 stage_metrics=stage_metrics,
-                metadata={"cleaning_details": cleaning_metadata}
             )
 
         except Exception as e:
@@ -211,7 +214,6 @@ class CodeCleaningStage(PipelineStage[str]):
                 error_message=error_msg,
                 error_context={"cleaning_error": str(e)},
             )
-
 
 
 class CodeValidationStage(PipelineStage[ValidationResult]):
