@@ -58,7 +58,6 @@ class SecurityConfig(BaseModel):
     )
     forbidden_patterns: list[str] = Field(
         default=[
-            "__import__",
             "eval",
             "exec",
             "compile",

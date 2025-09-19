@@ -14,7 +14,7 @@ from agents.sql_validation import (
     optimize_and_validate,
     validate_sql_with_langchain,
 )
-from infrastructure.llm import llm_client
+from infrastructure import llm
 from infrastructure.logging import get_logger
 from tracing.langsmith_setup import trace_agent_operation, tracer
 
@@ -41,7 +41,6 @@ class SQLGenerationAgent:
         self, dataset_id: str, max_results: int, google_api_key: str | None = None
     ):
         """Initialize the SQL generation agent."""
-        self.llm_service = llm_client
         self.dataset_id = dataset_id
         self.max_results = max_results
 
@@ -90,9 +89,9 @@ class SQLGenerationAgent:
                 )
 
                 # Generate SQL using AI
-                response = self.llm_service.generate_text(
+                response = llm.llm_client.generate_text(
                     prompt, temperature=0.1
-                )  # Low temp for precision
+                )  # Direct access
 
                 # Parse the response
                 sql_result = parse_sql_response(

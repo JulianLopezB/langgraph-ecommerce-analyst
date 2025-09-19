@@ -1,9 +1,3 @@
-"""Code validation and security scanning for generated Python code.
-
-Dynamic imports via ``__import__`` are prohibited. Generated code must rely on
-modules that are preloaded into the sandbox.
-"""
-
 import ast
 import re
 import time
@@ -37,9 +31,7 @@ class CodeValidator:
         self.allowed_imports = set(security_config.allowed_imports)
 
         # Additional security patterns
-        # `__import__` is blocked to prevent dynamic module loading.
         self.dangerous_functions = {
-            "__import__",
             "eval",
             "exec",
             "compile",

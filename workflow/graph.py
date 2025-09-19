@@ -83,7 +83,11 @@ class DataAnalysisAgent:
         workflow.add_conditional_edges(
             "generate_python_code",
             self._route_after_code_generation,
-            {"validate_code": "validate_code", "handle_error": "handle_error"},
+            {
+                "validate_code": "validate_code",
+                "synthesize_results": "synthesize_results",
+                "handle_error": "handle_error",
+            },
         )
 
         workflow.add_conditional_edges(

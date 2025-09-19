@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 
 from domain.entities import ProcessType
-from infrastructure.llm import llm_client
+from infrastructure import llm
 from infrastructure.logging import get_logger
 from tracing.langsmith_setup import trace_agent_operation, tracer
 
@@ -56,7 +56,6 @@ class SchemaIntelligenceAgent:
 
     def __init__(self):
         """Initialize the schema intelligence agent."""
-        self.llm_service = llm_client
         logger.info("SchemaIntelligenceAgent initialized")
 
     def understand_data(
@@ -99,7 +98,7 @@ class SchemaIntelligenceAgent:
                 )
 
                 # Get AI analysis
-                response = self.llm_service.generate_text(prompt, temperature=0.1)
+                response = llm.llm_client.generate_text(prompt, temperature=0.1)
 
                 # Parse the response
                 understanding = self._parse_schema_analysis(response.content, query)

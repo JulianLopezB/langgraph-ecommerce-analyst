@@ -38,7 +38,7 @@ def init_sql_validator(api_key: str | None, dataset_id: str):
             - Do NOT include aggregate functions (SUM, COUNT, AVG) in GROUP BY clause
             - Table alias consistency between SELECT and GROUP BY
             - BigQuery date functions: DATE(timestamp_column), DATE_DIFF syntax
-            - Complete table paths: `{DATASET_ID}.TABLE_NAME`
+            - Complete table paths: `{dataset_id}.TABLE_NAME`
 
             CRITICAL: If selecting individual columns with aggregates, ensure every non-aggregate column appears in GROUP BY.
 
@@ -59,7 +59,7 @@ def init_sql_validator(api_key: str | None, dataset_id: str):
                 ("system", validation_system_prompt),
                 ("human", "Validate this BigQuery SQL query:\n\n{query}"),
             ]
-        ).format(DATASET_ID=dataset_id)
+        )
 
         sql_validation_chain = validation_prompt | langchain_llm | StrOutputParser()
 
@@ -156,11 +156,9 @@ def create_fallback_sql(
 
     fallback_sql = f"""
         SELECT *
-        FROM `{DATASET_ID}.{primary_table}`
+        FROM `{dataset_id}.{primary_table}`
         LIMIT 100
-        """.format(
-        DATASET_ID=dataset_id
-    )
+        """
 
     return SQLGenerationResult(
         sql_query=fallback_sql.strip(),
