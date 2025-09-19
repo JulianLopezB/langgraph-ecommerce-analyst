@@ -8,13 +8,13 @@ from domain.pipeline import (
     CodeGenerationPipeline,
     create_code_generation_pipeline,
     PipelineContext,
-    PipelineStatus
+    PipelineStatus,
 )
 from domain.pipeline.stages import (
     CodeGenerationStage,
     CodeCleaningStage,
     CodeValidationStage,
-    CodeExecutionStage
+    CodeExecutionStage,
 )
 from domain.entities import GeneratedCode, ExecutionStatus, ExecutionResults
 from infrastructure.execution.validator import ValidationResult
@@ -29,8 +29,7 @@ class TestPipelineContext:
     def test_context_creation(self):
         """Test creating pipeline context with required fields."""
         context = PipelineContext(
-            user_query="Test query",
-            analysis_context={"test": "data"}
+            user_query="Test query", analysis_context={"test": "data"}
         )
         assert context.user_query == "Test query"
         assert context.analysis_context == {"test": "data"}
@@ -42,14 +41,13 @@ class TestPipelineContext:
     def test_context_metadata_updates(self):
         """Test that context metadata is properly updated."""
         context = PipelineContext(
-            user_query="Test query",
-            analysis_context={"test": "data"}
+            user_query="Test query", analysis_context={"test": "data"}
         )
         # Simulate stage metadata updates
         context.stage_metadata["generation"] = {
             "execution_time": 1.5,
             "success": True,
-            "code_length": 100
+            "code_length": 100,
         }
         context.metrics["generation_time"] = 1.5
         context.error_context["test_error"] = "Test error message"
@@ -79,8 +77,8 @@ class TestCodeGenerationStage:
             user_query="Generate hello world",
             analysis_context={
                 "process_data": {"process_type": "python"},
-                "data_characteristics": {"shape": (100, 5)}
-            }
+                "data_characteristics": {"shape": (100, 5)},
+            },
         )
         result = generation_stage.execute(context)
         assert result.success is True
@@ -96,10 +94,12 @@ class TestCodeGenerationStage:
 
     def test_llm_failure_handling(self, generation_stage, mock_llm_client):
         """Test handling of LLM failures."""
-        mock_llm_client.generate_adaptive_python_code.side_effect = Exception("LLM API Error")
+        mock_llm_client.generate_adaptive_python_code.side_effect = Exception(
+            "LLM API Error"
+        )
         context = PipelineContext(
             user_query="Generate code",
-            analysis_context={"process_data": {"process_type": "python"}}
+            analysis_context={"process_data": {"process_type": "python"}},
         )
         result = generation_stage.execute(context)
         assert result.success is False
@@ -109,18 +109,12 @@ class TestCodeGenerationStage:
     def test_input_validation(self, generation_stage):
         """Test input validation."""
         # Missing user_query
-        context = PipelineContext(
-            user_query="",
-            analysis_context={"test": "data"}
-        )
+        context = PipelineContext(user_query="", analysis_context={"test": "data"})
         result = generation_stage.execute(context)
         assert result.success is False
         assert "Missing user_query" in result.error_message
         # Missing analysis_context
-        context = PipelineContext(
-            user_query="Test query",
-            analysis_context={}
-        )
+        context = PipelineContext(user_query="Test query", analysis_context={})
         result = generation_stage.execute(context)
         assert result.success is False
         assert "Missing analysis_context" in result.error_message
@@ -144,9 +138,7 @@ def analyze_data():
     return "result"
 ```"""
         context = PipelineContext(
-            user_query="Test",
-            analysis_context={},
-            code_content=dirty_code
+            user_query="Test", analysis_context={}, code_content=dirty_code
         )
         result = cleaning_stage.execute(context)
         assert result.success is True
@@ -162,9 +154,7 @@ def analyze_data():
     def test_input_validation(self, cleaning_stage):
         """Test input validation for cleaning stage."""
         context = PipelineContext(
-            user_query="Test",
-            analysis_context={},
-            code_content=None
+            user_query="Test", analysis_context={}, code_content=None
         )
         result = cleaning_stage.execute(context)
         assert result.success is False
@@ -184,7 +174,7 @@ class TestCodeValidationStage:
             security_warnings=[],
             performance_warnings=[],
             validation_time=0.1,
-            security_score=1.0
+            security_score=1.0,
         )
         return validator
 
@@ -196,9 +186,7 @@ class TestCodeValidationStage:
     def test_successful_validation(self, validation_stage, mock_validator):
         """Test successful code validation."""
         context = PipelineContext(
-            user_query="Test",
-            analysis_context={},
-            cleaned_code="print('Hello')"
+            user_query="Test", analysis_context={}, cleaned_code="print('Hello')"
         )
         result = validation_stage.execute(context)
         assert result.success is True
@@ -218,18 +206,20 @@ class TestCodeValidationStage:
             security_warnings=["Dangerous function detected"],
             performance_warnings=[],
             validation_time=0.1,
-            security_score=0.3
+            security_score=0.3,
         )
         context = PipelineContext(
             user_query="Test",
             analysis_context={},
-            cleaned_code="eval('malicious code')"
+            cleaned_code="eval('malicious code')",
         )
         result = validation_stage.execute(context)
         assert result.success is False
         assert "Code validation failed" in result.error_message
         assert "Syntax error at line 1" in result.error_context["syntax_errors"]
-        assert "Dangerous function detected" in result.error_context["security_warnings"]
+        assert (
+            "Dangerous function detected" in result.error_context["security_warnings"]
+        )
 
 
 class TestCodeExecutionStage:
@@ -245,7 +235,7 @@ class TestCodeExecutionStage:
             execution_time=1.0,
             memory_used_mb=50.0,
             stdout="Output message",
-            stderr=""
+            stderr="",
         )
         return executor
 
@@ -262,13 +252,13 @@ class TestCodeExecutionStage:
             security_warnings=[],
             performance_warnings=[],
             validation_time=0.1,
-            security_score=1.0
+            security_score=1.0,
         )
         context = PipelineContext(
             user_query="Test",
             analysis_context={"raw_dataset": pd.DataFrame({"a": [1, 2, 3]})},
             cleaned_code="print('Hello')",
-            validation_results=validation_result
+            validation_results=validation_result,
         )
         result = execution_stage.execute(context)
         assert result.success is True
@@ -289,7 +279,7 @@ class TestCodeExecutionStage:
             execution_time=0.5,
             memory_used_mb=25.0,
             stdout="",
-            stderr="Error details"
+            stderr="Error details",
         )
         validation_result = ValidationResult(
             is_valid=True,
@@ -297,13 +287,13 @@ class TestCodeExecutionStage:
             security_warnings=[],
             performance_warnings=[],
             validation_time=0.1,
-            security_score=1.0
+            security_score=1.0,
         )
         context = PipelineContext(
             user_query="Test",
             analysis_context={"raw_dataset": pd.DataFrame()},
             cleaned_code="raise Exception('test')",
-            validation_results=validation_result
+            validation_results=validation_result,
         )
         result = execution_stage.execute(context)
         assert result.success is False
@@ -314,9 +304,7 @@ class TestCodeExecutionStage:
         """Test input validation for execution stage."""
         # No cleaned code
         context = PipelineContext(
-            user_query="Test",
-            analysis_context={},
-            cleaned_code=None
+            user_query="Test", analysis_context={}, cleaned_code=None
         )
         result = execution_stage.execute(context)
         assert result.success is False
@@ -326,7 +314,7 @@ class TestCodeExecutionStage:
             user_query="Test",
             analysis_context={},
             cleaned_code="print('test')",
-            validation_results=None
+            validation_results=None,
         )
         result = execution_stage.execute(context)
         assert result.success is False
@@ -340,7 +328,9 @@ class TestCodeGenerationPipeline:
     def mock_llm_client(self):
         """Mock LLM client."""
         client = Mock(spec=LLMClient)
-        client.generate_adaptive_python_code.return_value = "import pandas as pd\nprint('Analysis complete')"
+        client.generate_adaptive_python_code.return_value = (
+            "import pandas as pd\nprint('Analysis complete')"
+        )
         return client
 
     @pytest.fixture
@@ -353,7 +343,7 @@ class TestCodeGenerationPipeline:
             security_warnings=[],
             performance_warnings=[],
             validation_time=0.1,
-            security_score=1.0
+            security_score=1.0,
         )
         return validator
 
@@ -367,7 +357,7 @@ class TestCodeGenerationPipeline:
             execution_time=2.0,
             memory_used_mb=75.0,
             stdout="Analysis results printed",
-            stderr=""
+            stderr="",
         )
         return executor
 
@@ -383,8 +373,8 @@ class TestCodeGenerationPipeline:
             analysis_context={
                 "process_data": {"process_type": "python"},
                 "data_characteristics": {"shape": (1000, 10)},
-                "raw_dataset": pd.DataFrame({"sales": [100, 200, 300]})
-            }
+                "raw_dataset": pd.DataFrame({"sales": [100, 200, 300]}),
+            },
         )
         assert result.success is True
         assert result.status == PipelineStatus.SUCCESS
@@ -397,7 +387,9 @@ class TestCodeGenerationPipeline:
         assert "code_execution" in result.stage_results
         # Check all stages succeeded
         for stage_name, stage_result in result.stage_results.items():
-            assert stage_result.success, f"Stage {stage_name} failed: {stage_result.error_message}"
+            assert (
+                stage_result.success
+            ), f"Stage {stage_name} failed: {stage_result.error_message}"
         # Check final output structure
         final_output = result.final_output
         assert "execution_results" in final_output
@@ -406,7 +398,9 @@ class TestCodeGenerationPipeline:
         assert "pipeline_metrics" in final_output
         assert "stage_metadata" in final_output
 
-    def test_pipeline_failure_at_validation(self, mock_llm_client, mock_validator, mock_executor):
+    def test_pipeline_failure_at_validation(
+        self, mock_llm_client, mock_validator, mock_executor
+    ):
         """Test pipeline failure at validation stage."""
         # Make validation fail
         mock_validator.validate.return_value = ValidationResult(
@@ -415,15 +409,17 @@ class TestCodeGenerationPipeline:
             security_warnings=["Security issue detected"],
             performance_warnings=[],
             validation_time=0.1,
-            security_score=0.2
+            security_score=0.2,
         )
-        pipeline = CodeGenerationPipeline(mock_llm_client, mock_validator, mock_executor)
+        pipeline = CodeGenerationPipeline(
+            mock_llm_client, mock_validator, mock_executor
+        )
         result = pipeline.generate_and_execute_code(
             user_query="Malicious query",
             analysis_context={
                 "process_data": {"process_type": "python"},
-                "raw_dataset": pd.DataFrame()
-            }
+                "raw_dataset": pd.DataFrame(),
+            },
         )
         assert result.success is False
         assert result.status == PipelineStatus.FAILED
@@ -443,7 +439,9 @@ class TestCodeGenerationPipeline:
         assert "executor_limits" in health
         assert len(health["stages_info"]) == 4
 
-    def test_create_pipeline_factory(self, mock_llm_client, mock_validator, mock_executor):
+    def test_create_pipeline_factory(
+        self, mock_llm_client, mock_validator, mock_executor
+    ):
         """Test pipeline factory function."""
         pipeline = create_code_generation_pipeline(
             mock_llm_client, mock_validator, mock_executor
@@ -481,6 +479,7 @@ class TestReflectionStage:
     def reflection_stage(self, mock_llm_client):
         """Create reflection stage."""
         from domain.pipeline.stages import ReflectionStage
+
         return ReflectionStage(mock_llm_client)
 
     def test_successful_reflection(self, reflection_stage):
@@ -491,12 +490,12 @@ class TestReflectionStage:
             execution_time=2.5,
             memory_used_mb=150.0,
             stdout="Analysis completed successfully",
-            stderr=""
+            stderr="",
         )
         context = PipelineContext(
             user_query="Test query",
             analysis_context={},
-            execution_results=execution_results
+            execution_results=execution_results,
         )
         result = reflection_stage.execute(context)
         assert result.success is True
@@ -514,12 +513,12 @@ class TestReflectionStage:
             execution_time=15.0,  # Slow execution
             memory_used_mb=600.0,  # High memory usage
             stdout="Analysis completed",
-            stderr="Warning: Large dataset processed"
+            stderr="Warning: Large dataset processed",
         )
         context = PipelineContext(
             user_query="Test query",
             analysis_context={},
-            execution_results=execution_results
+            execution_results=execution_results,
         )
         result = reflection_stage.execute(context)
         assert result.success is True
@@ -528,7 +527,10 @@ class TestReflectionStage:
         assert len(result.data["suggestions"]) > 0
         # Check specific suggestions
         suggestions_text = " ".join(result.data["suggestions"])
-        assert "performance" in suggestions_text.lower() or "memory" in suggestions_text.lower()
+        assert (
+            "performance" in suggestions_text.lower()
+            or "memory" in suggestions_text.lower()
+        )
 
 
 class TestPipelineExtensibility:
@@ -537,7 +539,9 @@ class TestPipelineExtensibility:
     @pytest.fixture
     def pipeline_with_reflection(self, mock_llm_client, mock_validator, mock_executor):
         """Create pipeline with reflection stage."""
-        pipeline = CodeGenerationPipeline(mock_llm_client, mock_validator, mock_executor)
+        pipeline = CodeGenerationPipeline(
+            mock_llm_client, mock_validator, mock_executor
+        )
         pipeline.add_reflection_stage(enable_reflection=True)
         return pipeline
 
@@ -547,8 +551,8 @@ class TestPipelineExtensibility:
             user_query="Analyze data with reflection",
             analysis_context={
                 "process_data": {"process_type": "python"},
-                "raw_dataset": pd.DataFrame({"test": [1, 2, 3]})
-            }
+                "raw_dataset": pd.DataFrame({"test": [1, 2, 3]}),
+            },
         )
         assert result.success is True
         assert len(result.stage_results) == 5  # Including reflection stage
@@ -557,16 +561,22 @@ class TestPipelineExtensibility:
         reflection_result = result.stage_results["reflection"]
         assert reflection_result.success is True
 
-    def test_reflection_stage_optional(self, mock_llm_client, mock_validator, mock_executor):
+    def test_reflection_stage_optional(
+        self, mock_llm_client, mock_validator, mock_executor
+    ):
         """Test that reflection stage is optional."""
-        pipeline = CodeGenerationPipeline(mock_llm_client, mock_validator, mock_executor)
+        pipeline = CodeGenerationPipeline(
+            mock_llm_client, mock_validator, mock_executor
+        )
         # Default pipeline should have 4 stages
         assert len(pipeline.stages) == 4
         # Add reflection
         pipeline.add_reflection_stage(enable_reflection=True)
         assert len(pipeline.stages) == 5
         # Test disabled reflection
-        pipeline2 = CodeGenerationPipeline(mock_llm_client, mock_validator, mock_executor)
+        pipeline2 = CodeGenerationPipeline(
+            mock_llm_client, mock_validator, mock_executor
+        )
         pipeline2.add_reflection_stage(enable_reflection=False)
         assert len(pipeline2.stages) == 4  # Should still be 4
 
@@ -574,7 +584,9 @@ class TestPipelineExtensibility:
 class TestErrorPropagationImprovements:
     """Test improved error propagation and context handling."""
 
-    def test_comprehensive_error_context(self, mock_llm_client, mock_validator, mock_executor):
+    def test_comprehensive_error_context(
+        self, mock_llm_client, mock_validator, mock_executor
+    ):
         """Test that error context is properly propagated between stages."""
         # Make validation fail with detailed context
         mock_validator.validate.return_value = ValidationResult(
@@ -583,15 +595,17 @@ class TestErrorPropagationImprovements:
             security_warnings=["Use of eval() function detected"],
             performance_warnings=["Inefficient loop detected"],
             validation_time=0.2,
-            security_score=0.1
+            security_score=0.1,
         )
-        pipeline = CodeGenerationPipeline(mock_llm_client, mock_validator, mock_executor)
+        pipeline = CodeGenerationPipeline(
+            mock_llm_client, mock_validator, mock_executor
+        )
         result = pipeline.generate_and_execute_code(
             user_query="Generate malicious code",
             analysis_context={
                 "process_data": {"process_type": "python"},
-                "raw_dataset": pd.DataFrame()
-            }
+                "raw_dataset": pd.DataFrame(),
+            },
         )
         assert result.failed is True
         assert result.error_message is not None
@@ -603,15 +617,19 @@ class TestErrorPropagationImprovements:
         assert len(validation_stage_result.error_context["syntax_errors"]) > 0
         assert len(validation_stage_result.error_context["security_warnings"]) > 0
 
-    def test_stage_metrics_collection(self, mock_llm_client, mock_validator, mock_executor):
+    def test_stage_metrics_collection(
+        self, mock_llm_client, mock_validator, mock_executor
+    ):
         """Test that comprehensive metrics are collected from all stages."""
-        pipeline = CodeGenerationPipeline(mock_llm_client, mock_validator, mock_executor)
+        pipeline = CodeGenerationPipeline(
+            mock_llm_client, mock_validator, mock_executor
+        )
         result = pipeline.generate_and_execute_code(
             user_query="Generate test code",
             analysis_context={
                 "process_data": {"process_type": "python"},
-                "raw_dataset": pd.DataFrame({"test": [1, 2, 3]})
-            }
+                "raw_dataset": pd.DataFrame({"test": [1, 2, 3]}),
+            },
         )
         assert result.success is True
         # Check that all stages have metrics
@@ -636,11 +654,17 @@ class TestErrorPropagationImprovements:
 class TestPipelineHealthAndIntrospection:
     """Test pipeline health monitoring and introspection capabilities."""
 
-    def test_pipeline_health_check(self, mock_llm_client, mock_validator, mock_executor):
+    def test_pipeline_health_check(
+        self, mock_llm_client, mock_validator, mock_executor
+    ):
         """Test pipeline health information."""
         # Mock validator to return allowed imports count
-        mock_validator.get_allowed_imports = Mock(return_value=["pandas", "numpy", "matplotlib"])
-        pipeline = CodeGenerationPipeline(mock_llm_client, mock_validator, mock_executor)
+        mock_validator.get_allowed_imports = Mock(
+            return_value=["pandas", "numpy", "matplotlib"]
+        )
+        pipeline = CodeGenerationPipeline(
+            mock_llm_client, mock_validator, mock_executor
+        )
         health = pipeline.get_pipeline_health()
         assert health["pipeline_name"] == "code_generation_pipeline"
         assert health["total_stages"] == 4

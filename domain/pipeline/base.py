@@ -8,18 +8,21 @@ from datetime import datetime
 
 try:
     from infrastructure.logging import get_logger
+
     logger = get_logger(__name__)
 except ImportError:
     # Fallback for testing without dependencies
     import logging
+
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class PipelineStageType(Enum):
     """Types of pipeline stages."""
+
     GENERATION = "generation"
     CLEANING = "cleaning"
     VALIDATION = "validation"
@@ -29,6 +32,7 @@ class PipelineStageType(Enum):
 
 class PipelineStatus(Enum):
     """Status of pipeline execution."""
+
     PENDING = "pending"
     RUNNING = "running"
     SUCCESS = "success"
@@ -39,6 +43,7 @@ class PipelineStatus(Enum):
 @dataclass
 class PipelineContext:
     """Context passed between pipeline stages."""
+
     # Core data
     user_query: str
     analysis_context: Dict[str, Any]
@@ -63,6 +68,7 @@ class PipelineContext:
 @dataclass
 class StageResult(Generic[T]):
     """Result from a single pipeline stage."""
+
     success: bool
     data: Optional[T] = None
     error_message: Optional[str] = None
@@ -79,6 +85,7 @@ class StageResult(Generic[T]):
 @dataclass
 class PipelineResult:
     """Final result from pipeline execution."""
+
     status: PipelineStatus
     context: PipelineContext
     final_output: Optional[Any] = None
@@ -120,7 +127,7 @@ class PipelineStage(ABC, Generic[T]):
                 return StageResult[T](
                     success=False,
                     error_message=f"Input validation failed: {validation_error}",
-                    execution_time=time.time() - start_time
+                    execution_time=time.time() - start_time,
                 )
 
             # Execute stage logic
@@ -135,7 +142,7 @@ class PipelineStage(ABC, Generic[T]):
                 "execution_time": execution_time,
                 "success": result.success,
                 "timestamp": datetime.now().isoformat(),
-                **result.stage_metrics
+                **result.stage_metrics,
             }
 
             # Update context metrics
@@ -151,7 +158,9 @@ class PipelineStage(ABC, Generic[T]):
                     f"Stage {self.stage_name} failed: {result.error_message}"
                 )
                 # Propagate error to context
-                context.error_context[f"{self.stage_name}_error"] = result.error_message or "Unknown error"
+                context.error_context[f"{self.stage_name}_error"] = (
+                    result.error_message or "Unknown error"
+                )
 
             return result
 
@@ -163,9 +172,7 @@ class PipelineStage(ABC, Generic[T]):
             context.error_context[f"{self.stage_name}_error"] = error_msg
 
             return StageResult[T](
-                success=False,
-                error_message=error_msg,
-                execution_time=execution_time
+                success=False, error_message=error_msg, execution_time=execution_time
             )
 
     @abstractmethod
@@ -182,7 +189,7 @@ class PipelineStage(ABC, Generic[T]):
         return {
             "stage_name": self.stage_name,
             "stage_type": self.stage_type.value,
-            "class_name": self.__class__.__name__
+            "class_name": self.__class__.__name__,
         }
 
 
@@ -205,7 +212,9 @@ class Pipeline(ABC):
         start_time = time.time()
         context.pipeline_id = f"{self.pipeline_name}_{int(start_time)}"
 
-        self.logger.info(f"Starting pipeline {self.pipeline_name} with {len(self.stages)} stages")
+        self.logger.info(
+            f"Starting pipeline {self.pipeline_name} with {len(self.stages)} stages"
+        )
 
         stage_results = {}
 
@@ -226,7 +235,7 @@ class Pipeline(ABC):
                         context=context,
                         error_message=stage_result.error_message,
                         total_execution_time=total_time,
-                        stage_results=stage_results
+                        stage_results=stage_results,
                     )
 
                 # Allow stage to update context for next stage
@@ -234,14 +243,16 @@ class Pipeline(ABC):
 
             # Pipeline completed successfully
             total_time = time.time() - start_time
-            self.logger.info(f"Pipeline {self.pipeline_name} completed successfully in {total_time:.2f}s")
+            self.logger.info(
+                f"Pipeline {self.pipeline_name} completed successfully in {total_time:.2f}s"
+            )
 
             return PipelineResult(
                 status=PipelineStatus.SUCCESS,
                 context=context,
                 final_output=self._extract_final_output(context),
                 total_execution_time=total_time,
-                stage_results=stage_results
+                stage_results=stage_results,
             )
 
         except Exception as e:
@@ -254,14 +265,11 @@ class Pipeline(ABC):
                 context=context,
                 error_message=error_msg,
                 total_execution_time=total_time,
-                stage_results=stage_results
+                stage_results=stage_results,
             )
 
     def _update_context_after_stage(
-        self,
-        context: PipelineContext,
-        stage: PipelineStage,
-        result: StageResult
+        self, context: PipelineContext, stage: PipelineStage, result: StageResult
     ) -> None:
         """Update context after stage execution. Override in subclasses."""
         pass
@@ -275,5 +283,5 @@ class Pipeline(ABC):
         return {
             "pipeline_name": self.pipeline_name,
             "stages": [stage.get_stage_info() for stage in self.stages],
-            "total_stages": len(self.stages)
+            "total_stages": len(self.stages),
         }

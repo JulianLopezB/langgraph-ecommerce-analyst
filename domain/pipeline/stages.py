@@ -17,7 +17,16 @@ except ImportError:
             self.parameters = parameters or {}
 
     class ExecutionResults:
-        def __init__(self, status, output_data=None, execution_time=0, memory_used_mb=0, error_message=None, stdout="", stderr=""):
+        def __init__(
+            self,
+            status,
+            output_data=None,
+            execution_time=0,
+            memory_used_mb=0,
+            error_message=None,
+            stdout="",
+            stderr="",
+        ):
             self.status = status
             self.output_data = output_data
             self.execution_time = execution_time
@@ -27,7 +36,15 @@ except ImportError:
             self.stderr = stderr
 
     class ValidationResult:
-        def __init__(self, is_valid, syntax_errors=None, security_warnings=None, performance_warnings=None, validation_time=0, security_score=1.0):
+        def __init__(
+            self,
+            is_valid,
+            syntax_errors=None,
+            security_warnings=None,
+            performance_warnings=None,
+            validation_time=0,
+            security_score=1.0,
+        ):
             self.is_valid = is_valid
             self.syntax_errors = syntax_errors or []
             self.security_warnings = security_warnings or []
@@ -40,7 +57,12 @@ except ImportError:
     SecureExecutor = object
     LLMClient = object
 
-from domain.pipeline.base import PipelineStage, PipelineStageType, PipelineContext, StageResult
+from domain.pipeline.base import (
+    PipelineStage,
+    PipelineStageType,
+    PipelineContext,
+    StageResult,
+)
 
 
 class CodeGenerationStage(PipelineStage[GeneratedCode]):
@@ -72,12 +94,14 @@ class CodeGenerationStage(PipelineStage[GeneratedCode]):
             # Create GeneratedCode entity
             generated_code = GeneratedCode(
                 code_content=generated_code_content,
-                template_used=context.analysis_context.get("process_data", {}).get("process_type", "unknown"),
+                template_used=context.analysis_context.get("process_data", {}).get(
+                    "process_type", "unknown"
+                ),
                 parameters={
                     "analysis_context": context.analysis_context,
                     "original_query": context.user_query,
-                    "generation_timestamp": time.time()
-                }
+                    "generation_timestamp": time.time(),
+                },
             )
 
             # Update context
@@ -88,16 +112,18 @@ class CodeGenerationStage(PipelineStage[GeneratedCode]):
                 "code_length": len(generated_code_content),
                 "template_used": generated_code.template_used,
                 "has_imports": "import " in generated_code_content,
-                "has_plotting": any(lib in generated_code_content.lower()
-                                    for lib in ["matplotlib", "seaborn", "plotly"])
+                "has_plotting": any(
+                    lib in generated_code_content.lower()
+                    for lib in ["matplotlib", "seaborn", "plotly"]
+                ),
             }
 
-            self.logger.info(f"Generated {len(generated_code_content)} characters of code")
+            self.logger.info(
+                f"Generated {len(generated_code_content)} characters of code"
+            )
 
             return StageResult[GeneratedCode](
-                success=True,
-                data=generated_code,
-                stage_metrics=stage_metrics
+                success=True, data=generated_code, stage_metrics=stage_metrics
             )
 
         except Exception as e:
@@ -107,7 +133,7 @@ class CodeGenerationStage(PipelineStage[GeneratedCode]):
             return StageResult[GeneratedCode](
                 success=False,
                 error_message=error_msg,
-                error_context={"llm_error": str(e)}
+                error_context={"llm_error": str(e)},
             )
 
 
@@ -137,16 +163,17 @@ class CodeCleaningStage(PipelineStage[str]):
             stage_metrics = {
                 "original_length": len(original_code),
                 "cleaned_length": len(cleaned_code),
-                "lines_removed": original_code.count('\n') - cleaned_code.count('\n'),
-                "markdown_blocks_removed": original_code.count('```') - cleaned_code.count('```')
+                "lines_removed": original_code.count("\n") - cleaned_code.count("\n"),
+                "markdown_blocks_removed": original_code.count("```")
+                - cleaned_code.count("```"),
             }
 
-            self.logger.info(f"Cleaned code: {stage_metrics['lines_removed']} lines removed")
+            self.logger.info(
+                f"Cleaned code: {stage_metrics['lines_removed']} lines removed"
+            )
 
             return StageResult[str](
-                success=True,
-                data=cleaned_code,
-                stage_metrics=stage_metrics
+                success=True, data=cleaned_code, stage_metrics=stage_metrics
             )
 
         except Exception as e:
@@ -156,19 +183,19 @@ class CodeCleaningStage(PipelineStage[str]):
             return StageResult[str](
                 success=False,
                 error_message=error_msg,
-                error_context={"cleaning_error": str(e)}
+                error_context={"cleaning_error": str(e)},
             )
 
     def _clean_python_code(self, code: str) -> str:
         """Clean Python code by removing markdown and formatting issues."""
         # Remove markdown code blocks
-        code = re.sub(r'```python\s*\n?', '', code)
-        code = re.sub(r'```\s*\n?', '', code)
+        code = re.sub(r"```python\s*\n?", "", code)
+        code = re.sub(r"```\s*\n?", "", code)
         # Remove leading/trailing whitespace
         code = code.strip()
 
         # Remove any explanatory text before the first import or code line
-        lines = code.split('\n')
+        lines = code.split("\n")
         cleaned_lines = []
         code_started = False
 
@@ -180,20 +207,38 @@ class CodeCleaningStage(PipelineStage[str]):
                 continue
                 # Code starts with import, from, or other Python statements
             if not code_started and (
-                stripped.startswith(('import ', 'from ', 'def ', 'class ', 'if ', 'for ', 'while ', 'try:', 'with ')) or
-                stripped.startswith(('#', '"""', "'''")) or  # Comments or docstrings
-                any(char in stripped for char in ['=', '(', '[', '{']) or  # Assignments or data structures
-                stripped.endswith(':')  # Control structures
+                stripped.startswith(
+                    (
+                        "import ",
+                        "from ",
+                        "def ",
+                        "class ",
+                        "if ",
+                        "for ",
+                        "while ",
+                        "try:",
+                        "with ",
+                    )
+                )
+                or stripped.startswith(("#", '"""', "'''"))
+                or any(  # Comments or docstrings
+                    char in stripped for char in ["=", "(", "[", "{"]
+                )
+                or stripped.endswith(  # Assignments or data structures
+                    ":"
+                )  # Control structures
             ):
                 code_started = True
 
             if code_started:
                 cleaned_lines.append(line)
 
-        cleaned_code = '\n'.join(cleaned_lines)
+        cleaned_code = "\n".join(cleaned_lines)
 
         # Ensure proper line endings
-        cleaned_code = re.sub(r'\n\s*\n\s*\n', '\n\n', cleaned_code)  # Remove excessive blank lines
+        cleaned_code = re.sub(
+            r"\n\s*\n\s*\n", "\n\n", cleaned_code
+        )  # Remove excessive blank lines
 
         return cleaned_code.strip()
 
@@ -226,12 +271,16 @@ class CodeValidationStage(PipelineStage[ValidationResult]):
                 "security_score": validation_result.security_score,
                 "syntax_errors_count": len(validation_result.syntax_errors),
                 "security_warnings_count": len(validation_result.security_warnings),
-                "performance_warnings_count": len(validation_result.performance_warnings),
-                "validation_time": validation_result.validation_time
+                "performance_warnings_count": len(
+                    validation_result.performance_warnings
+                ),
+                "validation_time": validation_result.validation_time,
             }
 
             if validation_result.is_valid:
-                self.logger.info(f"Code validation passed with security score: {validation_result.security_score:.2f}")
+                self.logger.info(
+                    f"Code validation passed with security score: {validation_result.security_score:.2f}"
+                )
             else:
                 self.logger.warning(
                     f"Code validation failed: {len(validation_result.syntax_errors)} syntax errors, "
@@ -241,13 +290,15 @@ class CodeValidationStage(PipelineStage[ValidationResult]):
             return StageResult[ValidationResult](
                 success=validation_result.is_valid,
                 data=validation_result,
-                error_message=None if validation_result.is_valid else "Code validation failed",
+                error_message=None
+                if validation_result.is_valid
+                else "Code validation failed",
                 error_context={
                     "syntax_errors": validation_result.syntax_errors,
                     "security_warnings": validation_result.security_warnings,
-                    "performance_warnings": validation_result.performance_warnings
+                    "performance_warnings": validation_result.performance_warnings,
                 },
-                stage_metrics=stage_metrics
+                stage_metrics=stage_metrics,
             )
 
         except Exception as e:
@@ -257,7 +308,7 @@ class CodeValidationStage(PipelineStage[ValidationResult]):
             return StageResult[ValidationResult](
                 success=False,
                 error_message=error_msg,
-                error_context={"validation_error": str(e)}
+                error_context={"validation_error": str(e)},
             )
 
 
@@ -290,8 +341,7 @@ class CodeExecutionStage(PipelineStage[ExecutionResults]):
 
             # Execute the code
             execution_results = self.executor.execute_code(
-                context.cleaned_code,
-                execution_context
+                context.cleaned_code, execution_context
             )
 
             # Update context
@@ -304,7 +354,7 @@ class CodeExecutionStage(PipelineStage[ExecutionResults]):
                 "memory_used_mb": execution_results.memory_used_mb,
                 "has_output_data": execution_results.output_data is not None,
                 "stdout_length": len(execution_results.stdout),
-                "stderr_length": len(execution_results.stderr)
+                "stderr_length": len(execution_results.stderr),
             }
 
             success = execution_results.status.value == "success"
@@ -315,7 +365,9 @@ class CodeExecutionStage(PipelineStage[ExecutionResults]):
                     f"memory: {execution_results.memory_used_mb:.1f}MB"
                 )
             else:
-                self.logger.warning(f"Code execution failed: {execution_results.error_message}")
+                self.logger.warning(
+                    f"Code execution failed: {execution_results.error_message}"
+                )
 
             return StageResult[ExecutionResults](
                 success=success,
@@ -323,9 +375,11 @@ class CodeExecutionStage(PipelineStage[ExecutionResults]):
                 error_message=execution_results.error_message if not success else None,
                 error_context={
                     "execution_status": execution_results.status.value,
-                    "stderr": execution_results.stderr
-                } if not success else {},
-                stage_metrics=stage_metrics
+                    "stderr": execution_results.stderr,
+                }
+                if not success
+                else {},
+                stage_metrics=stage_metrics,
             )
 
         except Exception as e:
@@ -335,7 +389,7 @@ class CodeExecutionStage(PipelineStage[ExecutionResults]):
             return StageResult[ExecutionResults](
                 success=False,
                 error_message=error_msg,
-                error_context={"execution_error": str(e)}
+                error_context={"execution_error": str(e)},
             )
 
     def _prepare_execution_context(self, context: PipelineContext) -> Dict[str, Any]:
@@ -381,7 +435,7 @@ class ReflectionStage(PipelineStage[Dict[str, Any]]):
                 "memory_used": execution_results.memory_used_mb,
                 "has_output": execution_results.output_data is not None,
                 "stdout_length": len(execution_results.stdout),
-                "stderr_length": len(execution_results.stderr)
+                "stderr_length": len(execution_results.stderr),
             }
 
             # Add suggestions based on results
@@ -391,30 +445,39 @@ class ReflectionStage(PipelineStage[Dict[str, Any]]):
                 suggestions.append("Consider optimizing code for better performance")
 
             if execution_results.memory_used_mb > 500:
-                suggestions.append("Consider reducing memory usage or processing data in chunks")
+                suggestions.append(
+                    "Consider reducing memory usage or processing data in chunks"
+                )
 
             if execution_results.stderr:
-                suggestions.append("Review stderr output for potential warnings or issues")
+                suggestions.append(
+                    "Review stderr output for potential warnings or issues"
+                )
 
             if not execution_results.output_data:
-                suggestions.append("Code executed but produced no output data - verify analysis logic")
+                suggestions.append(
+                    "Code executed but produced no output data - verify analysis logic"
+                )
 
             reflection_data["suggestions"] = suggestions
-            reflection_data["reflection_summary"] = f"Execution completed in {execution_results.execution_time:.2f}s with {len(suggestions)} suggestions"
+            reflection_data[
+                "reflection_summary"
+            ] = f"Execution completed in {execution_results.execution_time:.2f}s with {len(suggestions)} suggestions"
 
             stage_metrics = {
                 "suggestions_count": len(suggestions),
-                "performance_issues": execution_results.execution_time > 10.0 or execution_results.memory_used_mb > 500,
+                "performance_issues": execution_results.execution_time > 10.0
+                or execution_results.memory_used_mb > 500,
                 "has_warnings": bool(execution_results.stderr),
-                "successful_execution": execution_results.status.value == "success"
+                "successful_execution": execution_results.status.value == "success",
             }
 
-            self.logger.info(f"Reflection completed with {len(suggestions)} suggestions")
+            self.logger.info(
+                f"Reflection completed with {len(suggestions)} suggestions"
+            )
 
             return StageResult[Dict[str, Any]](
-                success=True,
-                data=reflection_data,
-                stage_metrics=stage_metrics
+                success=True, data=reflection_data, stage_metrics=stage_metrics
             )
 
         except Exception as e:
@@ -424,5 +487,5 @@ class ReflectionStage(PipelineStage[Dict[str, Any]]):
             return StageResult[Dict[str, Any]](
                 success=False,
                 error_message=error_msg,
-                error_context={"reflection_error": str(e)}
+                error_context={"reflection_error": str(e)},
             )

@@ -56,19 +56,19 @@ class AnalysisWorkflow:
 
         # Create structured pipeline for code generation
         self._code_pipeline = create_code_generation_pipeline(
-            llm_client=llm_client,
-            validator=validator,
-            executor=executor
+            llm_client=llm_client, validator=validator, executor=executor
         )
 
-        logger.info("AnalysisWorkflow initialized with structured code generation pipeline")
+        logger.info(
+            "AnalysisWorkflow initialized with structured code generation pipeline"
+        )
 
     def run(self, query: str) -> str:
         """
-        Execute the complete analysis workflow and return insights.
-     Now uses the structured CodeGenerationPipeline for Python code generation
-        instead of the fragmented approach, providing better error handling,
-        logging, and metrics collection.
+           Execute the complete analysis workflow and return insights.
+        Now uses the structured CodeGenerationPipeline for Python code generation
+           instead of the fragmented approach, providing better error handling,
+           logging, and metrics collection.
         """
         try:
             logger.info(f"Starting analysis workflow for query: {query[:100]}...")
@@ -80,7 +80,11 @@ class AnalysisWorkflow:
             # Determine processing strategy
             process_type_raw = self._process_classification.classify(query, schema_info)
             process_type = next(
-                (ptype for ptype in ProcessType if ptype.value in str(process_type_raw).lower()),
+                (
+                    ptype
+                    for ptype in ProcessType
+                    if ptype.value in str(process_type_raw).lower()
+                ),
                 ProcessType.SQL,
             )
             logger.info(f"Process type determined: {process_type}")
@@ -88,7 +92,9 @@ class AnalysisWorkflow:
             # Always generate SQL and retrieve data
             sql = self._sql_generation.generate(query, schema_info)
             data = self._execution.run_query(sql)
-            logger.info(f"SQL execution completed, retrieved {len(data) if hasattr(data, '__len__') else 'data'} rows")
+            logger.info(
+                f"SQL execution completed, retrieved {len(data) if hasattr(data, '__len__') else 'data'} rows"
+            )
 
             # For complex analysis, use structured pipeline for Python code generation
             if process_type is ProcessType.PYTHON:
@@ -101,18 +107,20 @@ class AnalysisWorkflow:
                     "process_data": {"process_type": "python"},
                     "sql_query": sql,
                     "sql_explanation": "Data retrieved via SQL for analysis",
-                    "data_info": {"shape": getattr(data, 'shape', None), "type": type(data).__name__},
+                    "data_info": {
+                        "shape": getattr(data, "shape", None),
+                        "type": type(data).__name__,
+                    },
                     "data_characteristics": self._inspect_data_characteristics(data),
                     "data_understanding": {"query_intent": query},
                     "sql_metadata": {"explanation": "SQL data retrieval"},
                     "dataframe_name": "df",
-                    "raw_dataset": data
+                    "raw_dataset": data,
                 }
 
                 # Execute structured pipeline
                 pipeline_result = self._code_pipeline.generate_and_execute_code(
-                    user_query=query,
-                    analysis_context=analysis_context
+                    user_query=query, analysis_context=analysis_context
                 )
 
                 if pipeline_result.success:
@@ -121,21 +129,35 @@ class AnalysisWorkflow:
                     )
 
                     # Extract execution results
-                    if pipeline_result.final_output and pipeline_result.final_output.get("execution_results"):
-                        execution_results = pipeline_result.final_output["execution_results"]
+                    if (
+                        pipeline_result.final_output
+                        and pipeline_result.final_output.get("execution_results")
+                    ):
+                        execution_results = pipeline_result.final_output[
+                            "execution_results"
+                        ]
                         if execution_results.output_data:
                             data = execution_results.output_data
                         else:
                             # Use original data if no output_data
-                            logger.warning("No output data from pipeline, using original data")
+                            logger.warning(
+                                "No output data from pipeline, using original data"
+                            )
                 else:
                     # Pipeline failed - provide detailed error context
                     error_details = []
-                    for stage_name, stage_result in pipeline_result.stage_results.items():
+                    for (
+                        stage_name,
+                        stage_result,
+                    ) in pipeline_result.stage_results.items():
                         if stage_result.failed:
-                            error_details.append(f"{stage_name}: {stage_result.error_message}")
+                            error_details.append(
+                                f"{stage_name}: {stage_result.error_message}"
+                            )
 
-                    comprehensive_error = f"Code generation pipeline failed: {'; '.join(error_details)}"
+                    comprehensive_error = (
+                        f"Code generation pipeline failed: {'; '.join(error_details)}"
+                    )
                     logger.error(comprehensive_error)
 
                     # Instead of raising generic ValueError, provide structured error
@@ -166,22 +188,25 @@ class AnalysisWorkflow:
                     "dtypes": {col: str(dtype) for col, dtype in data.dtypes.items()},
                     "memory_usage": data.memory_usage(deep=True).sum(),
                     "has_nulls": data.isnull().any().any(),
-                    "numeric_columns": list(data.select_dtypes(include=['number']).columns),
-                    "datetime_columns": list(data.select_dtypes(include=['datetime']).columns),
-                    "categorical_columns": list(data.select_dtypes(include=['object', 'category']).columns)
+                    "numeric_columns": list(
+                        data.select_dtypes(include=["number"]).columns
+                    ),
+                    "datetime_columns": list(
+                        data.select_dtypes(include=["datetime"]).columns
+                    ),
+                    "categorical_columns": list(
+                        data.select_dtypes(include=["object", "category"]).columns
+                    ),
                 }
             else:
                 return {
                     "type": type(data).__name__,
-                    "length": len(data) if hasattr(data, '__len__') else None,
-                    "shape": getattr(data, 'shape', None)
+                    "length": len(data) if hasattr(data, "__len__") else None,
+                    "shape": getattr(data, "shape", None),
                 }
         except Exception as e:
             logger.warning(f"Failed to inspect data characteristics: {e}")
-            return {
-                "type": type(data).__name__,
-                "inspection_error": str(e)
-            }
+            return {"type": type(data).__name__, "inspection_error": str(e)}
 
 
 def create_workflow_adapter(

@@ -27,7 +27,6 @@ def create_manager(tmp_path=None):
         conversation_history: list | None = None,
         artifacts: dict | None = None,
     ):
-
         return {
             "session_id": session_id,
             "conversation_history": [

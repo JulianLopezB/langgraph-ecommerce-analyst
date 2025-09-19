@@ -27,9 +27,7 @@ def get_code_generation_pipeline() -> CodeGenerationPipeline:
     global _pipeline_instance
     if _pipeline_instance is None:
         _pipeline_instance = create_code_generation_pipeline(
-            llm_client=llm_service,
-            validator=validator,
-            executor=secure_executor
+            llm_client=llm_service, validator=validator, executor=secure_executor
         )
         logger.info("Initialized structured code generation pipeline")
     return _pipeline_instance
@@ -177,14 +175,15 @@ def generate_python_code(state: AnalysisState) -> AnalysisState:
             ),
             "sql_metadata": state["analysis_outputs"].get("sql_metadata", {}),
             "dataframe_name": state.get("active_dataframe", "df"),
-            "raw_dataset": state["raw_dataset"]  # Add raw dataset for execution context
+            "raw_dataset": state[
+                "raw_dataset"
+            ],  # Add raw dataset for execution context
         }
 
         # Execute the structured pipeline
         pipeline = get_code_generation_pipeline()
         pipeline_result = pipeline.generate_and_execute_code(
-            user_query=state["user_query"],
-            analysis_context=analysis_context
+            user_query=state["user_query"], analysis_context=analysis_context
         )
 
         if pipeline_result.success:
@@ -202,7 +201,9 @@ def generate_python_code(state: AnalysisState) -> AnalysisState:
 
             # Update analysis outputs with execution results
             if state["execution_results"] and state["execution_results"].output_data:
-                state["analysis_outputs"]["python_results"] = state["execution_results"].output_data
+                state["analysis_outputs"]["python_results"] = state[
+                    "execution_results"
+                ].output_data
 
             # Pipeline completed successfully - skip to synthesis
             state["next_step"] = "synthesize_results"
@@ -210,7 +211,6 @@ def generate_python_code(state: AnalysisState) -> AnalysisState:
             logger.info(
                 f"Pipeline completed successfully for query: {state['user_query'][:50]}..."
                 f"(Total time: {pipeline_result.total_execution_time:.2f}s)"
-
             )
 
         else:
@@ -229,7 +229,6 @@ def generate_python_code(state: AnalysisState) -> AnalysisState:
                 stage: result.error_context
                 for stage, result in pipeline_result.stage_results.items()
                 if result.failed
-
             }
 
             state["next_step"] = "handle_error"
@@ -317,7 +316,9 @@ def execute_code(state: AnalysisState) -> AnalysisState:
 
         if execution_results.status.value == "success":
             if execution_results.output_data:
-                state["analysis_outputs"]["python_results"] = execution_results.output_data
+                state["analysis_outputs"][
+                    "python_results"
+                ] = execution_results.output_data
             state["next_step"] = "synthesize_results"
             logger.info("Using pipeline execution results - success")
         else:
