@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, Optional
 
-from domain.entities import GeneratedCode, ExecutionResults
+from domain.entities import ExecutionResults, GeneratedCode
 from domain.pipeline.base import (
     Pipeline,
     PipelineContext,
@@ -11,14 +11,14 @@ from domain.pipeline.base import (
     StageResult,
 )
 from domain.pipeline.stages import (
-    CodeGenerationStage,
     CodeCleaningStage,
-    CodeValidationStage,
     CodeExecutionStage,
+    CodeGenerationStage,
+    CodeValidationStage,
     ReflectionStage,
 )
-from infrastructure.execution.validator import CodeValidator
 from infrastructure.execution.executor import SecureExecutor
+from infrastructure.execution.validator import CodeValidator
 from infrastructure.llm.base import LLMClient
 from infrastructure.logging import get_logger
 
@@ -171,11 +171,14 @@ class CodeGenerationPipeline(Pipeline):
 
     def get_pipeline_health(self) -> Dict[str, Any]:
         """Get health information about the pipeline components."""
+        allowed_imports = self.validator.get_allowed_imports()
         return {
             "pipeline_name": self.pipeline_name,
             "total_stages": len(self.stages),
             "llm_client_type": type(self.llm_client).__name__,
-            "validator_allowed_imports": len(self.validator.get_allowed_imports()),
+            "validator_allowed_imports": (
+                len(allowed_imports) if hasattr(allowed_imports, "__len__") else 0
+            ),
             "executor_limits": {
                 "max_execution_time": self.executor.max_execution_time,
                 "max_memory_mb": self.executor.max_memory_mb,

@@ -70,7 +70,7 @@ def test_validation_failure_raises_value_error():
         ProcessType.PYTHON
     )
     validation.validate.return_value = False
-    with pytest.raises(ValueError):
+    with pytest.raises(RuntimeError):
         workflow.run("question")
     python_generation.generate.assert_called_once()
     validation.validate.assert_called_once()

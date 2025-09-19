@@ -1,27 +1,27 @@
 """Tests for the structured code generation pipeline."""
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
-import pandas as pd
-from typing import Dict, Any
+from typing import Any, Dict
+from unittest.mock import MagicMock, Mock, patch
 
+import pandas as pd
+import pytest
+
+from domain.entities import ExecutionResults, ExecutionStatus, GeneratedCode
 from domain.pipeline import (
     CodeGenerationPipeline,
-    create_code_generation_pipeline,
     PipelineContext,
     PipelineStatus,
+    create_code_generation_pipeline,
 )
 from domain.pipeline.stages import (
-    CodeGenerationStage,
     CodeCleaningStage,
-    CodeValidationStage,
     CodeExecutionStage,
+    CodeGenerationStage,
+    CodeValidationStage,
 )
-from domain.entities import GeneratedCode, ExecutionStatus, ExecutionResults
-from infrastructure.execution.validator import ValidationResult
-from infrastructure.llm.base import LLMClient
-from infrastructure.execution.validator import CodeValidator
 from infrastructure.execution.executor import SecureExecutor
+from infrastructure.execution.validator import CodeValidator, ValidationResult
+from infrastructure.llm.base import LLMClient
 
 
 class TestPipelineContext:
@@ -538,6 +538,50 @@ class TestPipelineExtensibility:
     """Test pipeline extensibility and reflection capabilities."""
 
     @pytest.fixture
+    def mock_llm_client(self):
+        """Mock LLM client."""
+        client = Mock(spec=LLMClient)
+        client.generate_code.return_value = GeneratedCode(
+            code="print('test')",
+            explanation="Test code generation",
+            template_used="basic_analysis",
+            confidence_score=0.9,
+        )
+        return client
+
+    @pytest.fixture
+    def mock_validator(self):
+        """Mock validator."""
+        validator = Mock(spec=CodeValidator)
+        validator.validate.return_value = ValidationResult(
+            is_valid=True,
+            syntax_errors=[],
+            security_warnings=[],
+            performance_warnings=[],
+            validation_time=0.1,
+            security_score=1.0,
+        )
+        validator.get_allowed_imports.return_value = ["pandas", "numpy"]
+        return validator
+
+    @pytest.fixture
+    def mock_executor(self):
+        """Mock executor."""
+        executor = Mock(spec=SecureExecutor)
+        executor.execute_code.return_value = ExecutionResults(
+            status=ExecutionStatus.SUCCESS,
+            output_data={"result": "test"},
+            execution_time=0.1,
+            memory_used_mb=10.0,
+            error_message=None,
+            stdout="",
+            stderr="",
+        )
+        executor.max_execution_time = 30
+        executor.max_memory_mb = 512
+        return executor
+
+    @pytest.fixture
     def pipeline_with_reflection(self, mock_llm_client, mock_validator, mock_executor):
         """Create pipeline with reflection stage."""
         pipeline = CodeGenerationPipeline(
@@ -584,6 +628,50 @@ class TestPipelineExtensibility:
 
 class TestErrorPropagationImprovements:
     """Test improved error propagation and context handling."""
+
+    @pytest.fixture
+    def mock_llm_client(self):
+        """Mock LLM client."""
+        client = Mock(spec=LLMClient)
+        client.generate_code.return_value = GeneratedCode(
+            code="print('test')",
+            explanation="Test code generation",
+            template_used="basic_analysis",
+            confidence_score=0.9,
+        )
+        return client
+
+    @pytest.fixture
+    def mock_validator(self):
+        """Mock validator."""
+        validator = Mock(spec=CodeValidator)
+        validator.validate.return_value = ValidationResult(
+            is_valid=True,
+            syntax_errors=[],
+            security_warnings=[],
+            performance_warnings=[],
+            validation_time=0.1,
+            security_score=1.0,
+        )
+        validator.get_allowed_imports.return_value = ["pandas", "numpy"]
+        return validator
+
+    @pytest.fixture
+    def mock_executor(self):
+        """Mock executor."""
+        executor = Mock(spec=SecureExecutor)
+        executor.execute_code.return_value = ExecutionResults(
+            status=ExecutionStatus.SUCCESS,
+            output_data={"result": "test"},
+            execution_time=0.1,
+            memory_used_mb=10.0,
+            error_message=None,
+            stdout="",
+            stderr="",
+        )
+        executor.max_execution_time = 30
+        executor.max_memory_mb = 512
+        return executor
 
     def test_comprehensive_error_context(
         self, mock_llm_client, mock_validator, mock_executor
@@ -654,6 +742,50 @@ class TestErrorPropagationImprovements:
 
 class TestPipelineHealthAndIntrospection:
     """Test pipeline health monitoring and introspection capabilities."""
+
+    @pytest.fixture
+    def mock_llm_client(self):
+        """Mock LLM client."""
+        client = Mock(spec=LLMClient)
+        client.generate_code.return_value = GeneratedCode(
+            code="print('test')",
+            explanation="Test code generation",
+            template_used="basic_analysis",
+            confidence_score=0.9,
+        )
+        return client
+
+    @pytest.fixture
+    def mock_validator(self):
+        """Mock validator."""
+        validator = Mock(spec=CodeValidator)
+        validator.validate.return_value = ValidationResult(
+            is_valid=True,
+            syntax_errors=[],
+            security_warnings=[],
+            performance_warnings=[],
+            validation_time=0.1,
+            security_score=1.0,
+        )
+        validator.get_allowed_imports.return_value = ["pandas", "numpy"]
+        return validator
+
+    @pytest.fixture
+    def mock_executor(self):
+        """Mock executor."""
+        executor = Mock(spec=SecureExecutor)
+        executor.execute_code.return_value = ExecutionResults(
+            status=ExecutionStatus.SUCCESS,
+            output_data={"result": "test"},
+            execution_time=0.1,
+            memory_used_mb=10.0,
+            error_message=None,
+            stdout="",
+            stderr="",
+        )
+        executor.max_execution_time = 30
+        executor.max_memory_mb = 512
+        return executor
 
     def test_pipeline_health_check(
         self, mock_llm_client, mock_validator, mock_executor

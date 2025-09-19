@@ -1,13 +1,13 @@
 """Pipeline stages for code generation."""
 
-from typing import Any, Dict, Optional
 import re
 import time
+from typing import Any, Dict, Optional
 
 try:
-    from domain.entities import GeneratedCode, ExecutionResults
-    from infrastructure.execution.validator import CodeValidator, ValidationResult
+    from domain.entities import ExecutionResults, GeneratedCode
     from infrastructure.execution.executor import SecureExecutor
+    from infrastructure.execution.validator import CodeValidator, ValidationResult
     from infrastructure.llm.base import LLMClient
 except ImportError:
     # Fallback classes for testing
@@ -59,9 +59,9 @@ except ImportError:
     LLMClient = object
 
 from domain.pipeline.base import (
+    PipelineContext,
     PipelineStage,
     PipelineStageType,
-    PipelineContext,
     StageResult,
 )
 
@@ -110,17 +110,29 @@ class CodeGenerationStage(PipelineStage[GeneratedCode]):
 
             # Collect metrics
             stage_metrics = {
-                "code_length": len(generated_code_content),
+                "code_length": (
+                    len(generated_code_content)
+                    if isinstance(generated_code_content, str)
+                    else 0
+                ),
                 "template_used": generated_code.template_used,
-                "has_imports": "import " in generated_code_content,
-                "has_plotting": any(
-                    lib in generated_code_content.lower()
-                    for lib in ["matplotlib", "seaborn", "plotly"]
+                "has_imports": (
+                    "import " in generated_code_content
+                    if isinstance(generated_code_content, str)
+                    else False
+                ),
+                "has_plotting": (
+                    any(
+                        lib in generated_code_content.lower()
+                        for lib in ["matplotlib", "seaborn", "plotly"]
+                    )
+                    if isinstance(generated_code_content, str)
+                    else False
                 ),
             }
 
             self.logger.info(
-                f"Generated {len(generated_code_content)} characters of code"
+                f"Generated {len(generated_code_content) if isinstance(generated_code_content, str) else 0} characters of code"
             )
 
             return StageResult[GeneratedCode](
