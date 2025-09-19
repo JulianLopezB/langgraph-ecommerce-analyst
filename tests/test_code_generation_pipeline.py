@@ -346,7 +346,7 @@ class TestCodeGenerationPipeline:
             validation_time=0.1,
             security_score=1.0,
         )
-        validator.get_allowed_imports.return_value = ["pandas", "numpy"]
+        validator.get_allowed_imports.return_value = {"pandas", "numpy"}
         return validator
 
     @pytest.fixture
@@ -562,7 +562,7 @@ class TestPipelineExtensibility:
             validation_time=0.1,
             security_score=1.0,
         )
-        validator.get_allowed_imports.return_value = ["pandas", "numpy"]
+        validator.get_allowed_imports.return_value = {"pandas", "numpy"}
         return validator
 
     @pytest.fixture
@@ -652,7 +652,7 @@ class TestErrorPropagationImprovements:
             validation_time=0.1,
             security_score=1.0,
         )
-        validator.get_allowed_imports.return_value = ["pandas", "numpy"]
+        validator.get_allowed_imports.return_value = {"pandas", "numpy"}
         return validator
 
     @pytest.fixture
@@ -764,7 +764,7 @@ class TestPipelineHealthAndIntrospection:
             validation_time=0.1,
             security_score=1.0,
         )
-        validator.get_allowed_imports.return_value = ["pandas", "numpy"]
+        validator.get_allowed_imports.return_value = {"pandas", "numpy"}
         return validator
 
     @pytest.fixture
@@ -790,7 +790,7 @@ class TestPipelineHealthAndIntrospection:
         """Test pipeline health information."""
         # Mock validator to return allowed imports count
         mock_validator.get_allowed_imports = Mock(
-            return_value=["pandas", "numpy", "matplotlib"]
+            return_value={"pandas", "numpy", "matplotlib"}
         )
         pipeline = CodeGenerationPipeline(
             mock_llm_client, mock_validator, mock_executor
