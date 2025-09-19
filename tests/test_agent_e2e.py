@@ -27,12 +27,7 @@ def setup_common(monkeypatch, process_type):
             return pd.DataFrame({"col": [1, 2, 3]})
 
     repo = DummyRepo()
-    for path in [
-        "infrastructure.persistence.data_repository",
-        "workflow.nodes.query_understanding.data_repo",
-        "workflow.nodes.execution.data_repo",
-    ]:
-        monkeypatch.setattr(path, repo)
+    monkeypatch.setattr("infrastructure.persistence.data_repository", repo)
 
     class DummyClassifier:
         def classify(self, prompt, schema):
@@ -97,7 +92,6 @@ def setup_common(monkeypatch, process_type):
 
     llm = DummyLLM()
     monkeypatch.setattr("infrastructure.llm.llm_client", llm)
-    monkeypatch.setattr("workflow.nodes.execution.llm_service", llm)
 
     return repo, classifier, llm
 
@@ -128,11 +122,7 @@ def test_data_analysis_agent_python_e2e(monkeypatch):
             return validation
 
     validator = DummyValidator()
-    for path in [
-        "infrastructure.execution.validator",
-        "workflow.nodes.execution.validator",
-    ]:
-        monkeypatch.setattr(path, validator)
+    monkeypatch.setattr("infrastructure.execution.validator", validator)
 
     class DummyExecutor:
         def execute_code(self, code, context):
@@ -147,11 +137,7 @@ def test_data_analysis_agent_python_e2e(monkeypatch):
             )
 
     executor = DummyExecutor()
-    for path in [
-        "infrastructure.execution.secure_executor",
-        "workflow.nodes.execution.secure_executor",
-    ]:
-        monkeypatch.setattr(path, executor)
+    monkeypatch.setattr("infrastructure.execution.secure_executor", executor)
 
     agent = DataAnalysisAgent()
     result = agent.analyze("Run python analysis")
