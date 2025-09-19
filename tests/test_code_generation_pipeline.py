@@ -1,4 +1,5 @@
 """Tests for the structured code generation pipeline."""
+
 import pytest
 from unittest.mock import Mock, MagicMock, patch
 import pandas as pd

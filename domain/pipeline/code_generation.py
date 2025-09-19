@@ -1,4 +1,5 @@
 """Code generation pipeline implementation."""
+
 from typing import Any, Dict, Optional
 
 from domain.entities import GeneratedCode, ExecutionResults
@@ -133,12 +134,16 @@ class CodeGenerationPipeline(Pipeline):
             "execution_results": context.execution_results,
             "generated_code": GeneratedCode(
                 code_content=context.cleaned_code or context.code_content or "",
-                validation_passed=context.validation_results.is_valid
-                if context.validation_results
-                else False,
-                security_score=context.validation_results.security_score
-                if context.validation_results
-                else 0.0,
+                validation_passed=(
+                    context.validation_results.is_valid
+                    if context.validation_results
+                    else False
+                ),
+                security_score=(
+                    context.validation_results.security_score
+                    if context.validation_results
+                    else 0.0
+                ),
                 parameters=context.analysis_context,
             ),
             "validation_results": context.validation_results,

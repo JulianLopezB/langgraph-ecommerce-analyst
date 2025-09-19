@@ -1,4 +1,5 @@
 """Pipeline stages for code generation."""
+
 from typing import Any, Dict, Optional
 import re
 import time
@@ -290,9 +291,9 @@ class CodeValidationStage(PipelineStage[ValidationResult]):
             return StageResult[ValidationResult](
                 success=validation_result.is_valid,
                 data=validation_result,
-                error_message=None
-                if validation_result.is_valid
-                else "Code validation failed",
+                error_message=(
+                    None if validation_result.is_valid else "Code validation failed"
+                ),
                 error_context={
                     "syntax_errors": validation_result.syntax_errors,
                     "security_warnings": validation_result.security_warnings,
@@ -373,12 +374,14 @@ class CodeExecutionStage(PipelineStage[ExecutionResults]):
                 success=success,
                 data=execution_results,
                 error_message=execution_results.error_message if not success else None,
-                error_context={
-                    "execution_status": execution_results.status.value,
-                    "stderr": execution_results.stderr,
-                }
-                if not success
-                else {},
+                error_context=(
+                    {
+                        "execution_status": execution_results.status.value,
+                        "stderr": execution_results.stderr,
+                    }
+                    if not success
+                    else {}
+                ),
                 stage_metrics=stage_metrics,
             )
 
@@ -460,9 +463,9 @@ class ReflectionStage(PipelineStage[Dict[str, Any]]):
                 )
 
             reflection_data["suggestions"] = suggestions
-            reflection_data[
-                "reflection_summary"
-            ] = f"Execution completed in {execution_results.execution_time:.2f}s with {len(suggestions)} suggestions"
+            reflection_data["reflection_summary"] = (
+                f"Execution completed in {execution_results.execution_time:.2f}s with {len(suggestions)} suggestions"
+            )
 
             stage_metrics = {
                 "suggestions_count": len(suggestions),
