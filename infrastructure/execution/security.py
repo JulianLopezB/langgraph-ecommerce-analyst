@@ -1,5 +1,6 @@
 """Security isolation components for safe code execution."""
 
+import importlib
 import warnings
 from typing import Any, Dict, List, Set
 
@@ -89,8 +90,8 @@ class SecurityIsolator:
                         "RandomForestRegressor": RandomForestRegressor,
                     })
                 else:
-                    # Standard module import
-                    module = __import__(module_name)
+                    # Standard module import - use importlib to correctly import submodules
+                    module = importlib.import_module(module_name)
                     safe_modules[alias] = module
                     
             except ImportError as e:
@@ -104,7 +105,7 @@ class SecurityIsolator:
         return {
             "len", "str", "int", "float", "bool", "list", "dict", "tuple", "set",
             "min", "max", "sum", "abs", "round", "sorted", "enumerate", "zip", "range",
-            "print", "type", "isinstance", "any", "all",
+            "print", "type", "isinstance", "any", "all", "hasattr", "getattr",
             "Exception", "ValueError", "TypeError", "KeyError", "IndexError", "AttributeError"
         }
     
