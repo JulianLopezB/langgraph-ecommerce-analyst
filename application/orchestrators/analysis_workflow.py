@@ -1,17 +1,20 @@
 """High-level orchestration for the data analysis workflow."""
+
 from typing import Any, Callable, Dict
 
 from domain.entities import ProcessType
 from domain.pipeline import CodeGenerationPipeline, create_code_generation_pipeline
+
 from application.use_cases import (
-    SchemaAnalysisUseCase,
-    ProcessClassificationUseCase,
-    SQLGenerationUseCase,
-    PythonGenerationUseCase,
-    CodeValidationUseCase,
     CodeExecutionUseCase,
+    CodeValidationUseCase,
     InsightSynthesisUseCase,
+    ProcessClassificationUseCase,
+    PythonGenerationUseCase,
+    SchemaAnalysisUseCase,
+    SQLGenerationUseCase,
 )
+
 from infrastructure.execution.validator import CodeValidator
 from infrastructure.execution.executor import SecureExecutor
 from infrastructure.llm.base import LLMClient
@@ -62,20 +65,10 @@ class AnalysisWorkflow:
 
     def run(self, query: str) -> str:
         """
-        Execute the complete analysis workflow and return insights.
-        
+           Execute the complete analysis workflow and return insights.
         Now uses the structured CodeGenerationPipeline for Python code generation
-        instead of the fragmented approach, providing better error handling,
-        logging, and metrics collection.
-        
-        Args:
-            query: The user's natural language query to analyze
-            
-        Returns:
-            str: Generated insights from the analysis
-            
-        Raises:
-            RuntimeError: If the pipeline fails during code generation
+           instead of the fragmented approach, providing better error handling,
+           logging, and metrics collection.
         """
         try:
             logger.info(f"Starting analysis workflow for query: {query[:100]}...")
