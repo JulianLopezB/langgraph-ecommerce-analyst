@@ -160,6 +160,7 @@ class SecureExecutor(CodeExecutor):
         """Create a safe global environment for code execution."""
         # Start with minimal builtins
         safe_builtins = {
+            "__import__",
             "len",
             "str",
             "int",
