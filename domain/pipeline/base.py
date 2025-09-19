@@ -60,7 +60,7 @@ class PipelineContext:
     created_at: datetime = field(default_factory=datetime.now)
 
 
-@dataclass 
+@dataclass
 class StageResult(Generic[T]):
     """Result from a single pipeline stage."""
     success: bool
@@ -109,7 +109,8 @@ class PipelineStage(ABC, Generic[T]):
     def execute(self, context: PipelineContext) -> StageResult[T]:
         """Execute the pipeline stage with proper error handling and metrics."""
         start_time = time.time()
-     try:
+
+        try:
             self.logger.info(f"Starting {self.stage_name} stage")
             context.current_stage = self.stage_name
 
@@ -151,7 +152,8 @@ class PipelineStage(ABC, Generic[T]):
                 )
                 # Propagate error to context
                 context.error_context[f"{self.stage_name}_error"] = result.error_message or "Unknown error"
-         return result
+
+            return result
 
         except Exception as e:
             execution_time = time.time() - start_time
@@ -180,7 +182,7 @@ class PipelineStage(ABC, Generic[T]):
         return {
             "stage_name": self.stage_name,
             "stage_type": self.stage_type.value,
-        "class_name": self.__class__.__name__
+            "class_name": self.__class__.__name__
         }
 
 
@@ -202,18 +204,23 @@ class Pipeline(ABC):
         """Execute the complete pipeline."""
         start_time = time.time()
         context.pipeline_id = f"{self.pipeline_name}_{int(start_time)}"
-     self.logger.info(f"Starting pipeline {self.pipeline_name} with {len(self.stages)} stages")
-     stage_results = {}
-     try:
+
+        self.logger.info(f"Starting pipeline {self.pipeline_name} with {len(self.stages)} stages")
+
+        stage_results = {}
+
+        try:
             for stage in self.stages:
                 stage_result = stage.execute(context)
                 stage_results[stage.stage_name] = stage_result
-             if stage_result.failed:
+
+                if stage_result.failed:
                     self.logger.error(
                         f"Pipeline {self.pipeline_name} failed at stage {stage.stage_name}: "
                         f"{stage_result.error_message}"
                     )
-             total_time = time.time() - start_time
+
+                    total_time = time.time() - start_time
                     return PipelineResult(
                         status=PipelineStatus.FAILED,
                         context=context,
@@ -221,7 +228,8 @@ class Pipeline(ABC):
                         total_execution_time=total_time,
                         stage_results=stage_results
                     )
-             # Allow stage to update context for next stage
+
+                # Allow stage to update context for next stage
                 self._update_context_after_stage(context, stage, stage_result)
 
             # Pipeline completed successfully
@@ -250,7 +258,7 @@ class Pipeline(ABC):
             )
 
     def _update_context_after_stage(
-        self, 
+        self,
         context: PipelineContext,
         stage: PipelineStage,
         result: StageResult

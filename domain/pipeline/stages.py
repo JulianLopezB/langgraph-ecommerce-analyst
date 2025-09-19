@@ -37,7 +37,7 @@ except ImportError:
 
     # Mock interfaces
     CodeValidator = object
-    SecureExecutor = object 
+    SecureExecutor = object
     LLMClient = object
 
 from domain.pipeline.base import PipelineStage, PipelineStageType, PipelineContext, StageResult
@@ -55,9 +55,11 @@ class CodeGenerationStage(PipelineStage[GeneratedCode]):
         """Validate that we have the necessary context for code generation."""
         if not context.user_query:
             return "Missing user_query in context"
-     if not context.analysis_context:
+
+        if not context.analysis_context:
             return "Missing analysis_context in context"
-     return None
+
+        return None
 
     def _execute_stage(self, context: PipelineContext) -> StageResult[GeneratedCode]:
         """Generate code using the LLM client."""
@@ -87,7 +89,7 @@ class CodeGenerationStage(PipelineStage[GeneratedCode]):
                 "template_used": generated_code.template_used,
                 "has_imports": "import " in generated_code_content,
                 "has_plotting": any(lib in generated_code_content.lower()
-                                   for lib in ["matplotlib", "seaborn", "plotly"])
+                                    for lib in ["matplotlib", "seaborn", "plotly"])
             }
 
             self.logger.info(f"Generated {len(generated_code_content)} characters of code")
@@ -162,19 +164,21 @@ class CodeCleaningStage(PipelineStage[str]):
         # Remove markdown code blocks
         code = re.sub(r'```python\s*\n?', '', code)
         code = re.sub(r'```\s*\n?', '', code)
-     # Remove leading/trailing whitespace
+        # Remove leading/trailing whitespace
         code = code.strip()
-     # Remove any explanatory text before the first import or code line
+
+        # Remove any explanatory text before the first import or code line
         lines = code.split('\n')
         cleaned_lines = []
         code_started = False
-     for line in lines:
+
+        for line in lines:
             stripped = line.strip()
 
             # Skip empty lines before code starts
             if not code_started and not stripped:
                 continue
-         # Code starts with import, from, or other Python statements
+                # Code starts with import, from, or other Python statements
             if not code_started and (
                 stripped.startswith(('import ', 'from ', 'def ', 'class ', 'if ', 'for ', 'while ', 'try:', 'with ')) or
                 stripped.startswith(('#', '"""', "'''")) or  # Comments or docstrings
@@ -185,10 +189,13 @@ class CodeCleaningStage(PipelineStage[str]):
 
             if code_started:
                 cleaned_lines.append(line)
-     cleaned_code = '\n'.join(cleaned_lines)
-     # Ensure proper line endings
+
+        cleaned_code = '\n'.join(cleaned_lines)
+
+        # Ensure proper line endings
         cleaned_code = re.sub(r'\n\s*\n\s*\n', '\n\n', cleaned_code)  # Remove excessive blank lines
-     return cleaned_code.strip()
+
+        return cleaned_code.strip()
 
 
 class CodeValidationStage(PipelineStage[ValidationResult]):
@@ -202,7 +209,7 @@ class CodeValidationStage(PipelineStage[ValidationResult]):
     def _validate_input(self, context: PipelineContext) -> Optional[str]:
         """Validate that we have cleaned code to validate."""
         if not context.cleaned_code:
-        return "No cleaned code to validate"
+            return "No cleaned code to validate"
         return None
 
     def _execute_stage(self, context: PipelineContext) -> StageResult[ValidationResult]:
@@ -266,11 +273,14 @@ class CodeExecutionStage(PipelineStage[ExecutionResults]):
         """Validate that we have validated code to execute."""
         if not context.cleaned_code:
             return "No cleaned code to execute"
-     if not context.validation_results:
+
+        if not context.validation_results:
             return "Code has not been validated"
-     if not context.validation_results.is_valid:
+
+        if not context.validation_results.is_valid:
             return "Code failed validation and cannot be executed"
-     return None
+
+        return None
 
     def _execute_stage(self, context: PipelineContext) -> StageResult[ExecutionResults]:
         """Execute the validated code."""
@@ -331,12 +341,13 @@ class CodeExecutionStage(PipelineStage[ExecutionResults]):
     def _prepare_execution_context(self, context: PipelineContext) -> Dict[str, Any]:
         """Prepare the execution context with necessary variables."""
         execution_context = {}
-     # Add DataFrame if available in analysis context
+        # Add DataFrame if available in analysis context
         analysis_context = context.analysis_context
         if "raw_dataset" in analysis_context:
             df_name = analysis_context.get("dataframe_name", "df")
             execution_context[df_name] = analysis_context["raw_dataset"]
-     return execution_context
+
+        return execution_context
 
 
 class ReflectionStage(PipelineStage[Dict[str, Any]]):

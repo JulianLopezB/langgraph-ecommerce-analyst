@@ -41,23 +41,29 @@ class CodeGenerationPipeline(Pipeline):
             executor: Secure code executor
         """
         super().__init__("code_generation_pipeline")
-     self.llm_client = llm_client
+
+        self.llm_client = llm_client
         self.validator = validator
         self.executor = executor
-     # Build the pipeline stages
+
+        # Build the pipeline stages
         self._build_pipeline()
 
     def _build_pipeline(self) -> None:
         """Build the pipeline with all necessary stages."""
         # Stage 1: Generate code using LLM
         self.add_stage(CodeGenerationStage(self.llm_client))
-     # Stage 2: Clean and format the generated code
+
+        # Stage 2: Clean and format the generated code
         self.add_stage(CodeCleaningStage())
-     # Stage 3: Validate code for security and syntax
+
+        # Stage 3: Validate code for security and syntax
         self.add_stage(CodeValidationStage(self.validator))
-     # Stage 4: Execute validated code in secure environment
+
+        # Stage 4: Execute validated code in secure environment
         self.add_stage(CodeExecutionStage(self.executor))
-     logger.info(f"Built pipeline with {len(self.stages)} stages")
+
+        logger.info(f"Built pipeline with {len(self.stages)} stages")
 
     def generate_and_execute_code(
         self,
@@ -78,10 +84,13 @@ class CodeGenerationPipeline(Pipeline):
             user_query=user_query,
             analysis_context=analysis_context
         )
-     logger.info(f"Starting code generation pipeline for query: {user_query[:100]}...")
-     # Execute the pipeline
+
+        logger.info(f"Starting code generation pipeline for query: {user_query[:100]}...")
+
+        # Execute the pipeline
         result = self.execute(context)
-     # Log final result
+
+        # Log final result
         if result.success:
             logger.info(
                 f"Pipeline completed successfully in {result.total_execution_time:.2f}s"
@@ -90,10 +99,11 @@ class CodeGenerationPipeline(Pipeline):
             logger.error(
                 f"Pipeline failed: {result.error_message}"
             )
-     return result
+
+        return result
 
     def _update_context_after_stage(
-        self, 
+        self,
         context: PipelineContext,
         stage: PipelineStage,
         result: StageResult
@@ -134,7 +144,8 @@ class CodeGenerationPipeline(Pipeline):
             "pipeline_metrics": context.metrics,
             "stage_metadata": context.stage_metadata
         }
-     return output
+
+        return output
 
     def add_reflection_stage(self, enable_reflection: bool = True) -> None:
         """

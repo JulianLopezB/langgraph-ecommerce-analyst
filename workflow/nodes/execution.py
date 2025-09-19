@@ -226,7 +226,7 @@ def generate_python_code(state: AnalysisState) -> AnalysisState:
             comprehensive_error = f"Pipeline failure: {'; '.join(error_details)}"
             state["error_context"]["pipeline_error"] = comprehensive_error
             state["error_context"]["stage_errors"] = {
-                stage: result.error_context 
+                stage: result.error_context
                 for stage, result in pipeline_result.stage_results.items()
                 if result.failed
 
@@ -254,7 +254,8 @@ def validate_code(state: AnalysisState) -> AnalysisState:
     # If pipeline results are already available, use them
     if state.get("validation_results") and state.get("generated_code"):
         validation_result = state["validation_results"]
-     if validation_result.is_valid:
+
+        if validation_result.is_valid:
             state["next_step"] = "execute_code"
             logger.info("Using pipeline validation results - passed")
         else:
@@ -265,7 +266,8 @@ def validate_code(state: AnalysisState) -> AnalysisState:
                 "security_score": validation_result.security_score,
             }
             state["next_step"] = "handle_error"
-     return state
+
+        return state
 
     # Fallback to original validation logic if pipeline results not available
     try:
@@ -312,7 +314,8 @@ def execute_code(state: AnalysisState) -> AnalysisState:
     # If pipeline results are already available, use them
     if state.get("execution_results"):
         execution_results = state["execution_results"]
-     if execution_results.status.value == "success":
+
+        if execution_results.status.value == "success":
             if execution_results.output_data:
                 state["analysis_outputs"]["python_results"] = execution_results.output_data
             state["next_step"] = "synthesize_results"
@@ -321,7 +324,8 @@ def execute_code(state: AnalysisState) -> AnalysisState:
             logger.warning("Using pipeline execution results - failed")
             state["error_context"]["execution_error"] = execution_results.error_message
             state["next_step"] = "handle_error"
-     return state
+
+        return state
 
     # Fallback to original execution logic if pipeline results not available
     try:
