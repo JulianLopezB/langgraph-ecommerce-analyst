@@ -21,7 +21,8 @@ def test_artifact_reference_reuses_dataframe(monkeypatch):
         def execute_query(self, q):
             return df
 
-    execution.data_repo = DummyRepo()
+    # Mock the persistence.data_repository instead of a non-existent data_repo attribute
+    monkeypatch.setattr("infrastructure.persistence.data_repository", DummyRepo())
     execution.execute_sql(state)
 
     assert "result_1" in state["analysis_outputs"]

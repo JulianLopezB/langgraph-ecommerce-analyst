@@ -1,10 +1,14 @@
 """Tests for the structured code generation pipeline."""
 
+import os
+import sys
 from typing import Any, Dict
 from unittest.mock import MagicMock, Mock, patch
 
 import pandas as pd
 import pytest
+
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from domain.entities import ExecutionResults, ExecutionStatus, GeneratedCode
 from domain.pipeline import (
@@ -544,9 +548,7 @@ class TestPipelineExtensibility:
     def mock_llm_client(self):
         """Mock LLM client."""
         client = Mock(spec=LLMClient)
-        client.generate_code.return_value = GeneratedCode(
-            code_content="print('test')", template_used="basic_analysis"
-        )
+        client.generate_adaptive_python_code.return_value = "print('test')"
         client.generate_adaptive_python_code.return_value = "print('test')"
         return client
 
@@ -634,9 +636,7 @@ class TestErrorPropagationImprovements:
     def mock_llm_client(self):
         """Mock LLM client."""
         client = Mock(spec=LLMClient)
-        client.generate_code.return_value = GeneratedCode(
-            code_content="print('test')", template_used="basic_analysis"
-        )
+        client.generate_adaptive_python_code.return_value = "print('test')"
         client.generate_adaptive_python_code.return_value = "print('test')"
         return client
 
@@ -746,9 +746,7 @@ class TestPipelineHealthAndIntrospection:
     def mock_llm_client(self):
         """Mock LLM client."""
         client = Mock(spec=LLMClient)
-        client.generate_code.return_value = GeneratedCode(
-            code_content="print('test')", template_used="basic_analysis"
-        )
+        client.generate_adaptive_python_code.return_value = "print('test')"
         client.generate_adaptive_python_code.return_value = "print('test')"
         return client
 
