@@ -11,7 +11,6 @@ T = TypeVar("T", bound=BaseModel)
 
 import google.generativeai as genai
 from google.generativeai.types import HarmBlockThreshold, HarmCategory
-
 from langchain_core.output_parsers import StrOutputParser
 from langchain_google_genai import ChatGoogleGenerativeAI
 
@@ -88,9 +87,7 @@ class GeminiClient(LLMClient):
             prompt_length=len(prompt),
         ):
             try:
-                langchain_model = self._create_langchain_model(
-                    temperature, max_tokens
-                )
+                langchain_model = self._create_langchain_model(temperature, max_tokens)
                 chain = langchain_model | StrOutputParser()
                 content = chain.invoke(prompt)
                 if not content:
@@ -334,9 +331,7 @@ class GeminiClient(LLMClient):
             schema_name=schema.__name__,
         ):
             try:
-                langchain_model = self._create_langchain_model(
-                    temperature, max_tokens
-                )
+                langchain_model = self._create_langchain_model(temperature, max_tokens)
 
                 # LangChain handles Pydantic schemas natively through function calling
                 structured_model = langchain_model.with_structured_output(schema)
