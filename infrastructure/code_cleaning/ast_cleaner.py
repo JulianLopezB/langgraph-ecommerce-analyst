@@ -104,7 +104,10 @@ class ASTCodeCleaner:
             # Step 2: Remove explanatory text before code
             cleaned_code = self._remove_explanatory_text(cleaned_code)
 
-            # Step 3: Parse and validate syntax
+            # Step 3: Fix indentation early to avoid syntax errors
+            cleaned_code = self._fix_indentation(cleaned_code)
+
+            # Step 4: Parse and validate syntax
             try:
                 tree = ast.parse(cleaned_code)
                 metadata["syntax_valid"] = True
@@ -120,7 +123,9 @@ class ASTCodeCleaner:
                 except SyntaxError as e2:
                     metadata["errors"].append(f"Syntax error: {e2}")
                     logger.error(f"Could not fix syntax error: {e2}")
-                    return code, metadata
+                    # Return cleaned code even if syntax is invalid
+                    metadata["cleaned_lines"] = len(cleaned_code.splitlines())
+                    return cleaned_code, metadata
 
             # Step 4: Remove forbidden imports if specified
             if self.allowed_imports:
@@ -135,12 +140,11 @@ class ASTCodeCleaner:
                 except SyntaxError as e:
                     metadata["errors"].append(f"Syntax error after import removal: {e}")
                     logger.error(f"Import removal caused syntax error: {e}")
-                    return code, metadata
+                    # Return cleaned code even with import removal issues
+                    metadata["cleaned_lines"] = len(cleaned_code.splitlines())
+                    return cleaned_code, metadata
 
-            # Step 5: Clean up indentation and formatting
-            cleaned_code = self._fix_indentation(cleaned_code)
-
-            # Step 6: Apply black/isort formatting if enabled
+            # Step 5: Apply black/isort formatting if enabled
             if self.format_code:
                 try:
                     cleaned_code = self._apply_formatting(cleaned_code)
@@ -150,7 +154,7 @@ class ASTCodeCleaner:
                     logger.warning(f"Formatting failed: {e}")
                     metadata["errors"].append(f"Formatting error: {e}")
 
-            # Step 7: Final syntax validation
+            # Step 6: Final syntax validation
             try:
                 ast.parse(cleaned_code)
                 metadata["syntax_valid"] = True
@@ -164,14 +168,21 @@ class ASTCodeCleaner:
             except SyntaxError as e:
                 metadata["errors"].append(f"Final syntax validation failed: {e}")
                 logger.error(f"Final syntax validation failed: {e}")
-                return code, metadata
+                metadata["cleaned_lines"] = len(cleaned_code.splitlines())
+                return cleaned_code, metadata
 
             return cleaned_code, metadata
 
         except Exception as e:
             metadata["errors"].append(f"Unexpected error: {e}")
             logger.error(f"Unexpected error in code cleaning: {e}", exc_info=True)
-            return code, metadata
+            # Return cleaned_code if available, otherwise original code
+            try:
+                cleaned_code
+                metadata["cleaned_lines"] = len(cleaned_code.splitlines())
+                return cleaned_code, metadata
+            except NameError:
+                return code, metadata
 
     def _remove_markdown_formatting(self, code: str) -> str:
         """Remove markdown code block formatting."""
@@ -192,11 +203,34 @@ class ASTCodeCleaner:
         """
         lines = code.split("\n")
         code_start_idx = 0
+        code_end_idx = len(lines)
 
-        # First, try to find obvious Python code patterns
+        # Find where Python code actually starts
         for i, line in enumerate(lines):
             stripped = line.strip()
             if not stripped:
+                continue
+
+            # Skip obvious non-Python lines
+            if any(
+                phrase in stripped.lower()
+                for phrase in [
+                    "here's",
+                    "this is",
+                    "the following",
+                    "code:",
+                    "analysis:",
+                    "let me",
+                    "i'll",
+                    "we'll",
+                    "you can",
+                    "this will",
+                    "example:",
+                    "note:",
+                    "explanation:",
+                    "summary:",
+                ]
+            ):
                 continue
 
             # Check for obvious Python code patterns
@@ -212,31 +246,75 @@ class ASTCodeCleaner:
                         "while ",
                         "try:",
                         "with ",
+                        "@",  # decorators
                     )
                 )
                 or stripped.startswith(("#", '"""', "'''"))
-                or "=" in stripped
-                or stripped.endswith(":")
+                or (
+                    stripped.endswith(":")
+                    and any(
+                        keyword in stripped
+                        for keyword in [
+                            "def ",
+                            "class ",
+                            "if ",
+                            "for ",
+                            "while ",
+                            "try",
+                            "with ",
+                            "elif ",
+                            "else",
+                        ]
+                    )
+                )
+                or (
+                    re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*\s*=", stripped)
+                )  # variable assignment
             ):
 
-                # Try parsing from this line onwards
-                remaining_code = "\n".join(lines[i:])
+                # Extract potential code section (from here to end, or until obvious end)
+                potential_code_lines = lines[i:]
+
+                # Remove trailing explanatory text
+                for j in range(len(potential_code_lines) - 1, -1, -1):
+                    line = potential_code_lines[j].strip()
+                    if line and any(
+                        phrase in line.lower()
+                        for phrase in [
+                            "this code",
+                            "the code",
+                            "explanation",
+                            "summary",
+                            "note that",
+                            "as you can see",
+                            "this will",
+                            "this shows",
+                        ]
+                    ):
+                        potential_code_lines = potential_code_lines[:j]
+                    elif line:  # Stop at first real content line from the end
+                        break
+
+                potential_code = "\n".join(potential_code_lines)
+
+                # Try parsing this potential code section
                 try:
-                    ast.parse(remaining_code)
+                    ast.parse(potential_code)
                     code_start_idx = i
+                    code_end_idx = i + len(potential_code_lines)
                     break
                 except SyntaxError:
-                    # This line looks like code but remaining doesn't parse
-                    # Try with syntax fixes
+                    # Try with indentation fixes
                     try:
-                        fixed_remaining = self._fix_common_syntax_issues(remaining_code)
-                        ast.parse(fixed_remaining)
+                        fixed_code = self._fix_indentation(potential_code)
+                        ast.parse(fixed_code)
                         code_start_idx = i
+                        code_end_idx = i + len(potential_code_lines)
                         break
                     except SyntaxError:
                         continue
 
-        # If no obvious patterns found, try parsing from each line
+        # Fallback: simple line-by-line approach (much faster)
         if code_start_idx == 0:
             for i, line in enumerate(lines):
                 stripped = line.strip()
@@ -248,13 +326,23 @@ class ASTCodeCleaner:
                 try:
                     ast.parse(remaining_code)
                     code_start_idx = i
+                    code_end_idx = len(lines)
                     break
                 except SyntaxError:
-                    continue
+                    # Try with indentation fixes only
+                    try:
+                        fixed_remaining = self._fix_indentation(remaining_code)
+                        ast.parse(fixed_remaining)
+                        code_start_idx = i
+                        code_end_idx = len(lines)
+                        break
+                    except SyntaxError:
+                        continue
 
-        if code_start_idx > 0:
-            logger.debug(f"Removed {code_start_idx} lines of explanatory text")
-            return "\n".join(lines[code_start_idx:])
+        if code_start_idx > 0 or code_end_idx < len(lines):
+            removed_lines = code_start_idx + (len(lines) - code_end_idx)
+            logger.debug(f"Removed {removed_lines} lines of explanatory text")
+            return "\n".join(lines[code_start_idx:code_end_idx])
 
         return code
 
@@ -390,36 +478,82 @@ class ASTCodeCleaner:
         return code, removed_imports
 
     def _fix_indentation(self, code: str) -> str:
-        """Fix indentation issues using textwrap.dedent."""
+        """Fix indentation issues using syntax-aware approach."""
         try:
             # First, try to dedent the entire code block
             dedented = textwrap.dedent(code)
 
-            # Ensure consistent indentation (4 spaces)
+            # If the dedented code already parses correctly, return it
+            try:
+                ast.parse(dedented)
+                return dedented
+            except SyntaxError:
+                pass
+
+            # Otherwise, apply indentation fixing
             lines = dedented.split("\n")
             fixed_lines = []
+            expected_indent = 0
 
-            for line in lines:
-                if line.strip():  # Non-empty line
-                    # Count leading whitespace
-                    leading_space = len(line) - len(line.lstrip())
-                    indent_level = leading_space // 4  # Assume 4-space indentation
-                    remainder = leading_space % 4
+            for i, line in enumerate(lines):
+                stripped = line.strip()
 
-                    # Normalize to 4-space indentation
-                    if remainder != 0:
-                        indent_level += 1  # Round up partial indentation
+                if not stripped:  # Empty line
+                    fixed_lines.append("")
+                    continue
 
-                    fixed_line = "    " * indent_level + line.lstrip()
-                    fixed_lines.append(fixed_line)
-                else:
-                    fixed_lines.append("")  # Preserve empty lines
+                # Check if this line should be dedented (elif, else, except, finally, etc.)
+                if stripped.startswith(
+                    ("elif ", "else:", "except", "except:", "finally:")
+                ):
+                    expected_indent = max(0, expected_indent - 1)
+
+                # Apply the expected indentation
+                fixed_line = "    " * expected_indent + stripped
+                fixed_lines.append(fixed_line)
+
+                # Check if next line should be indented
+                if (
+                    stripped.endswith(":")
+                    and not stripped.startswith(('"""', "'''", "#"))
+                    and not (
+                        stripped.startswith('"""')
+                        and stripped.endswith('"""')
+                        and len(stripped) > 6
+                    )
+                ):
+                    expected_indent += 1
 
             return "\n".join(fixed_lines)
 
         except Exception as e:
-            logger.warning(f"Indentation fixing failed: {e}")
-            return code
+            logger.warning(f"Syntax-aware indentation fixing failed: {e}")
+            # Fallback to simple indentation fixing
+            try:
+                dedented = textwrap.dedent(code)
+                lines = dedented.split("\n")
+                fixed_lines = []
+
+                for line in lines:
+                    if line.strip():  # Non-empty line
+                        # Count leading whitespace
+                        leading_space = len(line) - len(line.lstrip())
+                        indent_level = leading_space // 4  # Assume 4-space indentation
+                        remainder = leading_space % 4
+
+                        # Normalize to 4-space indentation
+                        if remainder != 0:
+                            indent_level += 1  # Round up partial indentation
+
+                        fixed_line = "    " * indent_level + line.lstrip()
+                        fixed_lines.append(fixed_line)
+                    else:
+                        fixed_lines.append("")  # Preserve empty lines
+
+                return "\n".join(fixed_lines)
+            except Exception as e2:
+                logger.warning(f"Fallback indentation fixing also failed: {e2}")
+                return code
 
     def _apply_formatting(self, code: str) -> str:
         """Apply black and isort formatting if available."""

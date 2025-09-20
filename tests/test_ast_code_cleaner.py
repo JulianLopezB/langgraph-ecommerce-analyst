@@ -285,11 +285,39 @@ data=[1,2,3,4,5]
             # Should have proper spacing and formatting
             assert "def test(x, y, z):" in cleaned_code
             assert "result = x + y + z" in cleaned_code
-            # Imports should be sorted
+            # Imports should be properly organized by isort (standard library first, then third-party)
             lines = cleaned_code.split("\n")
             import_lines = [line for line in lines if line.startswith("import ")]
             if len(import_lines) > 1:
-                assert import_lines == sorted(import_lines)
+                # Check that standard library imports come before third-party imports
+                stdlib_imports = [
+                    line
+                    for line in import_lines
+                    if any(
+                        lib in line
+                        for lib in ["os", "sys", "re", "json", "time", "datetime"]
+                    )
+                ]
+                thirdparty_imports = [
+                    line
+                    for line in import_lines
+                    if "pandas" in line or "numpy" in line or "matplotlib" in line
+                ]
+
+                if stdlib_imports and thirdparty_imports:
+                    # Standard library imports should come first
+                    stdlib_index = import_lines.index(stdlib_imports[0])
+                    thirdparty_index = import_lines.index(thirdparty_imports[0])
+                    assert (
+                        stdlib_index < thirdparty_index
+                    ), f"Standard library imports should come before third-party: {import_lines}"
+
+                # Within each group, imports should be alphabetically sorted
+                for group in [stdlib_imports, thirdparty_imports]:
+                    if len(group) > 1:
+                        assert group == sorted(
+                            group
+                        ), f"Imports within group should be sorted: {group}"
 
     def test_multiple_markdown_blocks(self):
         """Test handling of multiple markdown code blocks."""
