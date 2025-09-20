@@ -10,6 +10,7 @@ import pytest
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from domain.entities import ExecutionStatus
+from pydantic import BaseModel
 from infrastructure.config import ExecutionLimits
 from infrastructure.execution.executor import SecureExecutor
 from infrastructure.llm.gemini import GeminiClient
@@ -111,19 +112,7 @@ def test_gemini_client(monkeypatch):
 
     os.environ["GEMINI_API_KEY"] = "test"
 
-    dummy_model = Mock()
-    dummy_response = SimpleNamespace(
-        candidates=[
-            SimpleNamespace(content=SimpleNamespace(parts=[SimpleNamespace(text="hi")]))
-        ]
-    )
-    dummy_model.generate_content.return_value = dummy_response
-
-    mock_genai = SimpleNamespace(
-        configure=lambda api_key=None: None,
-        GenerativeModel=lambda model_name, safety_settings: dummy_model,
-        types=SimpleNamespace(GenerationConfig=lambda **kwargs: kwargs),
-    )
+    mock_genai = SimpleNamespace(configure=lambda api_key=None: None)
 
     class HC:
         HARM_CATEGORY_HATE_SPEECH = 1
@@ -134,16 +123,107 @@ def test_gemini_client(monkeypatch):
     class HB:
         BLOCK_MEDIUM_AND_ABOVE = 1
 
+    class DummyLangChainModel:
+        def __init__(self):
+            self.prompts = []
+
+        def __or__(self, parser):
+            assert isinstance(parser, gemini_module.StrOutputParser)
+
+            class DummyChain:
+                def __init__(self_outer, outer):
+                    self_outer.outer = outer
+
+                def invoke(self_outer, prompt):
+                    self_outer.outer.prompts.append(prompt)
+                    return "hi"
+
+            return DummyChain(self)
+
+        def with_structured_output(self, schema):
+            class DummyStructured:
+                def invoke(self_inner, prompt):
+                    raise AssertionError("Structured output should not be used")
+
+            return DummyStructured()
+
+    dummy_model = DummyLangChainModel()
+
     monkeypatch.setattr(gemini_module, "genai", mock_genai)
     monkeypatch.setattr(gemini_module, "tracer", DummyTracer())
     monkeypatch.setattr(gemini_module, "trace_llm_operation", dummy_contextmanager)
     monkeypatch.setattr(gemini_module, "HarmCategory", HC)
     monkeypatch.setattr(gemini_module, "HarmBlockThreshold", HB)
+    monkeypatch.setattr(
+        gemini_module.GeminiClient,
+        "_create_langchain_model",
+        lambda self, temperature, max_tokens: dummy_model,
+    )
 
     client = GeminiClient(api_key="test")
     response = client.generate_text("prompt")
     assert response.content == "hi"
-    dummy_model.generate_content.assert_called_once()
+    assert dummy_model.prompts == ["prompt"]
+
+
+def test_gemini_client_structured(monkeypatch):
+    import infrastructure.llm.gemini as gemini_module
+
+    os.environ["GEMINI_API_KEY"] = "test"
+
+    mock_genai = SimpleNamespace(configure=lambda api_key=None: None)
+
+    class HC:
+        HARM_CATEGORY_HATE_SPEECH = 1
+        HARM_CATEGORY_DANGEROUS_CONTENT = 2
+        HARM_CATEGORY_SEXUALLY_EXPLICIT = 3
+        HARM_CATEGORY_HARASSMENT = 4
+
+    class HB:
+        BLOCK_MEDIUM_AND_ABOVE = 1
+
+    class DummyLangChainModel:
+        def __init__(self, structured_response):
+            self.structured_response = structured_response
+            self.prompts = []
+
+        def __or__(self, parser):
+            raise AssertionError("Text chain not expected in structured test")
+
+        def with_structured_output(self, schema):
+            assert schema is StructuredResponse
+
+            class DummyStructured:
+                def __init__(self_outer, outer):
+                    self_outer.outer = outer
+
+                def invoke(self_outer, prompt):
+                    self_outer.outer.prompts.append(prompt)
+                    return self_outer.outer.structured_response
+
+            return DummyStructured(self)
+
+    class StructuredResponse(BaseModel):
+        value: int = 1
+
+    dummy_model = DummyLangChainModel(StructuredResponse(value=5))
+
+    monkeypatch.setattr(gemini_module, "genai", mock_genai)
+    monkeypatch.setattr(gemini_module, "tracer", DummyTracer())
+    monkeypatch.setattr(gemini_module, "trace_llm_operation", dummy_contextmanager)
+    monkeypatch.setattr(gemini_module, "HarmCategory", HC)
+    monkeypatch.setattr(gemini_module, "HarmBlockThreshold", HB)
+    monkeypatch.setattr(
+        gemini_module.GeminiClient,
+        "_create_langchain_model",
+        lambda self, temperature, max_tokens: dummy_model,
+    )
+
+    client = GeminiClient(api_key="test")
+    response = client.generate_structured("prompt", StructuredResponse)
+    assert isinstance(response, StructuredResponse)
+    assert response.value == 5
+    assert dummy_model.prompts == ["prompt"]
 
 
 def test_secure_executor():
