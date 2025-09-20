@@ -40,7 +40,7 @@ GROUPING DIMENSIONS:
 {dimensions_info}
 
 JOIN STRATEGY:
-{'; '.join(data_understanding.join_strategy)}
+{_format_join_strategy(data_understanding.join_strategy)}
 
    SQL GENERATION REQUIREMENTS:
 
@@ -317,3 +317,28 @@ ANALYSIS PATTERNS:
 - Churn analysis: Calculate days since last order using existing orders table
 """
     return schema_template
+
+
+def _format_join_strategy(join_strategy: List) -> str:
+    """Format join strategy, handling both strings and dictionaries."""
+    if not join_strategy:
+        return "No specific join strategy required"
+
+    formatted_joins = []
+    for item in join_strategy:
+        if isinstance(item, str):
+            formatted_joins.append(item)
+        elif isinstance(item, dict):
+            # Handle dict format - extract meaningful join info
+            tables = item.get("tables", [])
+            condition = item.get("condition", "")
+            if tables and condition:
+                formatted_joins.append(f"JOIN {' '.join(tables)} ON {condition}")
+            elif "description" in item:
+                formatted_joins.append(item["description"])
+            else:
+                formatted_joins.append(str(item))
+        else:
+            formatted_joins.append(str(item))
+
+    return "; ".join(formatted_joins)
