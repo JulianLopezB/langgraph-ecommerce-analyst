@@ -15,7 +15,7 @@ def _bind_services(config):
     import infrastructure.execution as execution_module
     import infrastructure.llm as llm_module
     import infrastructure.persistence as persistence_module
-    from infrastructure.execution.executor import SecureExecutor
+    from infrastructure.execution.secure_executor import SecureExecutor
     from infrastructure.execution.validator import CodeValidator
     from infrastructure.llm.gemini import GeminiClient
     from infrastructure.persistence.bigquery import BigQueryRepository
@@ -25,7 +25,13 @@ def _bind_services(config):
         project_id=config.api_configurations.bigquery_project_id,
         dataset_id=config.api_configurations.dataset_id,
     )
-    secure_executor = SecureExecutor(config.execution_limits)
+    # Enable tracing in development environment
+    enable_tracing = config.environment == "development"
+    secure_executor = SecureExecutor(
+        config.execution_limits, 
+        enable_tracing=enable_tracing,
+        enable_detailed_tracing=False  # Can be enabled for deep debugging
+    )
     validator = CodeValidator(config.security_settings)
 
     llm_module.llm_client = llm_client
