@@ -21,6 +21,8 @@ from workflow.nodes import (
     synthesize_results,
     understand_query,
     validate_code,
+    reflect_on_failure,
+    reflect_on_success,
 )
 from workflow.state import AnalysisState, create_initial_state
 
@@ -49,6 +51,8 @@ class DataAnalysisAgent:
         workflow.add_node("execute_code", execute_code)
         workflow.add_node("synthesize_results", synthesize_results)
         workflow.add_node("handle_error", handle_error)
+        workflow.add_node("reflect_on_failure", reflect_on_failure)
+        workflow.add_node("reflect_on_success", reflect_on_success)
 
         # Set entry point
         workflow.set_entry_point("understand_query")
@@ -101,10 +105,24 @@ class DataAnalysisAgent:
             self._route_after_execution,
             {
                 "synthesize_results": "synthesize_results",
+                "reflect_on_failure": "reflect_on_failure",
+                "reflect_on_success": "reflect_on_success",
                 "handle_error": "handle_error",
             },
         )
 
+        # Add reflection edges
+        workflow.add_conditional_edges(
+            "reflect_on_failure",
+            self._route_after_reflection,
+            {
+                "retry_with_reflection": "generate_python_code",
+                "handle_error": "handle_error",
+            },
+        )
+        
+        workflow.add_edge("reflect_on_success", "synthesize_results")
+        
         # Terminal nodes
         workflow.add_edge("synthesize_results", END)
         workflow.add_edge("handle_error", END)
@@ -214,6 +232,21 @@ class DataAnalysisAgent:
 
     def _route_after_execution(self, state: AnalysisState) -> str:
         """Route after code execution."""
+        next_step = state.get("next_step", "handle_error")
+        
+        # Check execution results to determine if we should reflect
+        execution_results = state.get("execution_results")
+        if execution_results:
+            from domain.entities import ExecutionStatus
+            if execution_results.status == ExecutionStatus.FAILED:
+                return "reflect_on_failure"
+            elif execution_results.status == ExecutionStatus.SUCCESS:
+                return "reflect_on_success"
+                
+        return next_step
+        
+    def _route_after_reflection(self, state: AnalysisState) -> str:
+        """Route after reflection analysis."""
         return state.get("next_step", "handle_error")
 
     def _serialize_execution_results(self, execution_results) -> Dict[str, Any]:
