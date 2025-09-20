@@ -188,6 +188,9 @@ class CodeCleaningStage(PipelineStage[str]):
                     "formatting_applied", False
                 ),
                 "cleaning_success": cleaning_metadata.get("success", False),
+                "markdown_blocks_removed": cleaning_metadata.get(
+                    "markdown_blocks_removed", 0
+                ),
             }
 
             if cleaning_metadata.get("success"):

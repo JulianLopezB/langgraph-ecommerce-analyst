@@ -92,6 +92,7 @@ class ASTCodeCleaner:
             "formatting_applied": False,
             "original_lines": len(code.splitlines()) if code else 0,
             "cleaned_lines": 0,
+            "markdown_blocks_removed": 0,
             "errors": [],
         }
 
@@ -99,7 +100,10 @@ class ASTCodeCleaner:
             logger.debug("Starting AST-based code cleaning")
 
             # Step 1: Remove markdown formatting
-            cleaned_code = self._remove_markdown_formatting(code)
+            cleaned_code, markdown_blocks_removed = self._remove_markdown_formatting(
+                code
+            )
+            metadata["markdown_blocks_removed"] = markdown_blocks_removed
 
             # Step 2: Remove explanatory text before code
             cleaned_code = self._remove_explanatory_text(cleaned_code)
@@ -184,15 +188,33 @@ class ASTCodeCleaner:
             except NameError:
                 return code, metadata
 
-    def _remove_markdown_formatting(self, code: str) -> str:
-        """Remove markdown code block formatting."""
-        # Remove markdown code blocks
+    def _remove_markdown_formatting(self, code: str) -> Tuple[str, int]:
+        """Remove markdown code block formatting and count blocks removed."""
+        original_code = code
+        markdown_blocks_removed = 0
+
+        # Count and remove python code blocks
+        python_blocks = len(re.findall(r"^```python\s*\n?", code, flags=re.MULTILINE))
         code = re.sub(r"^```python\s*\n?", "", code, flags=re.MULTILINE)
+        markdown_blocks_removed += python_blocks
+
+        # Count and remove generic code blocks
+        generic_blocks = len(re.findall(r"^```\s*\n?", code, flags=re.MULTILINE))
         code = re.sub(r"^```\s*\n?", "", code, flags=re.MULTILINE)
+        markdown_blocks_removed += generic_blocks
+
+        # Count and remove closing blocks
+        closing_blocks = len(re.findall(r"\n```\s*$", code, flags=re.MULTILINE))
         code = re.sub(r"\n```\s*$", "", code, flags=re.MULTILINE)
+        markdown_blocks_removed += closing_blocks
+
         code = code.strip()
 
-        return code
+        # Only count as markdown blocks removed if we actually changed something
+        if code == original_code.strip():
+            markdown_blocks_removed = 0
+
+        return code, markdown_blocks_removed
 
     def _remove_explanatory_text(self, code: str) -> str:
         """
