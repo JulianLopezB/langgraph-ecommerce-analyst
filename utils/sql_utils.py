@@ -2,6 +2,54 @@
 
 import re
 
+AGGREGATE_FUNCTION_PATTERN = re.compile(
+    r"\b(" +
+    "|".join(
+        [
+            "SUM",
+            "COUNT",
+            "AVG",
+            "MIN",
+            "MAX",
+            "ARRAY_AGG",
+            "STRING_AGG",
+            "ANY_VALUE",
+            "APPROX_COUNT_DISTINCT",
+            "BIT_AND",
+            "BIT_OR",
+            "BIT_XOR",
+            "LOGICAL_AND",
+            "LOGICAL_OR",
+            "BOOL_AND",
+            "BOOL_OR",
+            "CORR",
+            "COVAR_POP",
+            "COVAR_SAMP",
+            "STDDEV",
+            "STDDEV_POP",
+            "STDDEV_SAMP",
+            "VARIANCE",
+            "VAR_POP",
+            "VAR_SAMP",
+            "VARIANCE_POP",
+            "VARIANCE_SAMP",
+            "PERCENTILE_CONT",
+            "PERCENTILE_DISC",
+            "RANK",
+            "DENSE_RANK",
+            "ROW_NUMBER",
+            "NTILE",
+            "LEAD",
+            "LAG",
+            "FIRST_VALUE",
+            "LAST_VALUE",
+            "NTH_VALUE",
+        ]
+    )
+    + r")\s*\(",
+    re.IGNORECASE,
+)
+
 
 def clean_sql_query(
     sql_query: str,
@@ -54,6 +102,68 @@ def clean_sql_query(
         sql_query += f" LIMIT {max_results}"
 
     return sql_query.strip()
+
+
+def _split_sql_expressions(clause: str) -> list[str]:
+    """Split a comma-separated SQL expression list while respecting parentheses."""
+
+    expressions: list[str] = []
+    current: list[str] = []
+    depth = 0
+
+    for char in clause:
+        if char == "(":
+            depth += 1
+        elif char == ")" and depth > 0:
+            depth -= 1
+
+        if char == "," and depth == 0:
+            expr = "".join(current).strip()
+            if expr:
+                expressions.append(expr)
+            current = []
+            continue
+
+        current.append(char)
+
+    tail = "".join(current).strip()
+    if tail:
+        expressions.append(tail)
+
+    return expressions
+
+
+def ensure_valid_group_by(sql_query: str) -> str:
+    """Ensure GROUP BY clauses do not contain aggregate expressions."""
+
+    group_by_pattern = re.compile(
+        r"(GROUP\s+BY)\s+(.+?)(?=(ORDER\s+BY|LIMIT|HAVING|QUALIFY|WINDOW|$))",
+        re.IGNORECASE | re.DOTALL,
+    )
+
+    def _clean_group_by(match: re.Match) -> str:
+        keyword = match.group(1)
+        clause = match.group(2)
+
+        expressions = _split_sql_expressions(clause)
+        filtered = [
+            expr
+            for expr in expressions
+            if not AGGREGATE_FUNCTION_PATTERN.search(expr)
+        ]
+
+        if not filtered:
+            replacement = ""
+        else:
+            replacement = f"{keyword} {', '.join(filtered)}"
+
+        if match.end() < len(match.string) and not match.string[match.end()].isspace():
+            replacement += " "
+
+        return replacement
+
+    cleaned_query = group_by_pattern.sub(_clean_group_by, sql_query)
+    return cleaned_query.strip()
 
 
 def format_error_message(error_type: str, error_msg: str) -> str:
