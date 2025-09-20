@@ -8,7 +8,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 from agents.schema_agent import DataUnderstanding
 from infrastructure.logging import get_logger
-from utils.sql_utils import clean_sql_query
+from utils.sql_utils import clean_sql_query, ensure_valid_group_by
 
 logger = get_logger(__name__)
 
@@ -90,14 +90,17 @@ def validate_sql_with_langchain(
             add_dataset_prefix=False,
             add_limit=True,
         )
+        validated_sql = ensure_valid_group_by(validated_sql)
         logger.info("SQL query validated successfully with LangChain")
         return validated_sql
     except Exception as e:  # pragma: no cover - best effort
         logger.warning(
             f"LangChain SQL validation failed: {e}, falling back to basic cleaning"
         )
-        return clean_sql_query(
-            sql_query, dataset_id, max_results, add_dataset_prefix=False, add_limit=True
+        return ensure_valid_group_by(
+            clean_sql_query(
+                sql_query, dataset_id, max_results, add_dataset_prefix=False, add_limit=True
+            )
         )
 
 

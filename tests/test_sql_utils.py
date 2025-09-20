@@ -4,7 +4,7 @@ import sys
 import pytest
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from utils.sql_utils import clean_sql_query
+from utils.sql_utils import clean_sql_query, ensure_valid_group_by
 
 DATASET = "bigquery-public-data.thelook_ecommerce"
 MAX_RESULTS = 10000
@@ -66,3 +66,21 @@ def test_does_not_duplicate_limit_clause():
         clean_sql_query(query, DATASET, MAX_RESULTS, add_dataset_prefix=False)
         == expected
     )
+
+
+def test_ensure_valid_group_by_removes_aggregate_expression():
+    query = (
+        "SELECT DATE(created_at) AS order_month, COUNT(*) AS total_orders "
+        "FROM orders GROUP BY DATE(created_at), COUNT(*) ORDER BY order_month"
+    )
+    expected = (
+        "SELECT DATE(created_at) AS order_month, COUNT(*) AS total_orders "
+        "FROM orders GROUP BY DATE(created_at) ORDER BY order_month"
+    )
+    assert ensure_valid_group_by(query) == expected
+
+
+def test_ensure_valid_group_by_drops_empty_clause():
+    query = "SELECT COUNT(*) AS total_orders FROM orders GROUP BY COUNT(*)"
+    expected = "SELECT COUNT(*) AS total_orders FROM orders"
+    assert ensure_valid_group_by(query) == expected
