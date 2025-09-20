@@ -3,11 +3,18 @@
 import os
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Type, TypeVar
+
+from pydantic import BaseModel
+
+T = TypeVar("T", bound=BaseModel)
 
 import google.generativeai as genai
 from google.generativeai.types import HarmBlockThreshold, HarmCategory
+from langchain_core.output_parsers import StrOutputParser
+from langchain_google_genai import ChatGoogleGenerativeAI
 
+from infrastructure.code_cleaning import create_ast_cleaner
 from infrastructure.logging import get_logger
 from tracing.langsmith_setup import trace_llm_operation, tracer
 
@@ -46,12 +53,25 @@ class GeminiClient(LLMClient):
             HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
         }
 
-        self.model = genai.GenerativeModel(
-            model_name=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
-            safety_settings=self.safety_settings,
-        )
+        self.model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+
+        # Initialize AST-based code cleaner
+        self.code_cleaner = create_ast_cleaner()
 
         logger.info("Gemini service initialized")
+
+    def _create_langchain_model(
+        self, temperature: float, max_tokens: int
+    ) -> ChatGoogleGenerativeAI:
+        """Create a LangChain Gemini model configured for this client."""
+
+        return ChatGoogleGenerativeAI(
+            model=self.model_name,
+            google_api_key=self.api_key,
+            temperature=temperature,
+            max_output_tokens=max_tokens,
+            safety_settings=self.safety_settings,
+        )
 
     def generate_text(
         self, prompt: str, temperature: float = 0.3, max_tokens: int = 2048
@@ -67,42 +87,35 @@ class GeminiClient(LLMClient):
             prompt_length=len(prompt),
         ):
             try:
-                generation_config = genai.types.GenerationConfig(
-                    temperature=temperature,
-                    max_output_tokens=max_tokens,
-                    candidate_count=1,
-                )
-
-                response = self.model.generate_content(
-                    prompt, generation_config=generation_config
-                )
-
-                if response.candidates and response.candidates[0].content.parts:
-                    content = response.candidates[0].content.parts[0].text
-                    response_time = time.time() - start_time
-                    tokens_used = self._estimate_tokens(prompt + content)
-
-                    # Log metrics to trace
-                    tracer.log_metrics(
-                        {
-                            "response_time": response_time,
-                            "tokens_used": tokens_used,
-                            "content_length": len(content),
-                            "prompt_length": len(prompt),
-                        }
-                    )
-
-                    return LLMResponse(
-                        content=content,
-                        tokens_used=tokens_used,
-                        response_time=response_time,
-                        model_used="gemini-1.5-flash",
-                    )
-                else:
+                langchain_model = self._create_langchain_model(temperature, max_tokens)
+                chain = langchain_model | StrOutputParser()
+                content = chain.invoke(prompt)
+                if not content:
                     logger.warning("Empty response from Gemini API")
                     return LLMResponse(
                         content="", response_time=time.time() - start_time
                     )
+
+                response_time = time.time() - start_time
+                tokens_used = self._estimate_tokens(prompt + content)
+
+                # Log metrics to trace
+                tracer.log_metrics(
+                    {
+                        "response_time": response_time,
+                        "tokens_used": tokens_used,
+                        "content_length": len(content),
+                        "prompt_length": len(prompt),
+                        "langchain_parser": "StrOutputParser",
+                    }
+                )
+
+                return LLMResponse(
+                    content=content,
+                    tokens_used=tokens_used,
+                    response_time=response_time,
+                    model_used=self.model_name,
+                )
 
             except Exception as e:
                 logger.error(f"Error generating text with Gemini: {str(e)}")
@@ -265,7 +278,29 @@ class GeminiClient(LLMClient):
             return insights
 
     def _clean_python_code(self, code: str) -> str:
-        """Clean Python code by removing markdown formatting and fixing syntax issues."""
+        """Clean Python code using AST-based processing to avoid syntax errors."""
+        try:
+            cleaned_code, metadata = self.code_cleaner.clean_code(code)
+
+            if metadata["success"]:
+                logger.debug(
+                    f"AST-based cleaning successful: {metadata['original_lines']} -> {metadata['cleaned_lines']} lines"
+                )
+                if metadata["imports_removed"]:
+                    logger.debug(f"Removed imports: {metadata['imports_removed']}")
+                return cleaned_code
+            else:
+                logger.warning(f"AST-based cleaning failed: {metadata['errors']}")
+                # Fallback to basic markdown removal only
+                return self._basic_markdown_cleanup(code)
+
+        except Exception as e:
+            logger.error(f"Code cleaning failed: {e}", exc_info=True)
+            # Fallback to basic cleanup
+            return self._basic_markdown_cleanup(code)
+
+    def _basic_markdown_cleanup(self, code: str) -> str:
+        """Basic fallback cleanup that only removes markdown formatting."""
         # Remove markdown code blocks
         if code.startswith("```python"):
             code = code[9:]
@@ -275,44 +310,73 @@ class GeminiClient(LLMClient):
         if code.endswith("```"):
             code = code[:-3]
 
-        # Remove any leading/trailing whitespace
-        code = code.strip()
-
-        # Fix unterminated string literals by removing incomplete lines
-        lines = code.split("\n")
-        cleaned_lines = []
-
-        for line in lines:
-            # Skip lines that might have unterminated strings
-            if line.count('"') % 2 != 0 and not line.strip().startswith("#"):
-                # Try to fix by removing trailing content
-                if '"' in line:
-                    quote_pos = line.rfind('"')
-                    line = line[: quote_pos + 1]
-
-            cleaned_lines.append(line)
-
-        code = "\n".join(cleaned_lines)
-
-        # Remove any explanation text before the first import or assignment
-        lines = code.split("\n")
-        code_start_idx = 0
-
-        for i, line in enumerate(lines):
-            line = line.strip()
-            if (
-                line.startswith("import ")
-                or line.startswith("from ")
-                or line.startswith("#")
-                or "=" in line
-            ):
-                code_start_idx = i
-                break
-
-        if code_start_idx > 0:
-            code = "\n".join(lines[code_start_idx:])
-
         return code.strip()
+
+    def generate_structured(
+        self,
+        prompt: str,
+        schema: Type[T],
+        temperature: float = 0.1,
+        max_tokens: int = 2048,
+    ) -> T:
+        """Generate structured output using LangChain's Google Gemini integration."""
+        start_time = time.time()
+
+        with trace_llm_operation(
+            name="gemini_generate_structured",
+            model="gemini-1.5-flash",
+            temperature=temperature,
+            max_tokens=max_tokens,
+            prompt_length=len(prompt),
+            schema_name=schema.__name__,
+        ):
+            try:
+                langchain_model = self._create_langchain_model(temperature, max_tokens)
+
+                # LangChain handles Pydantic schemas natively through function calling
+                structured_model = langchain_model.with_structured_output(schema)
+                response = structured_model.invoke(prompt)
+
+                response_time = time.time() - start_time
+                tokens_used = self._estimate_tokens(prompt + str(response))
+
+                # Log success metrics
+                tracer.log_metrics(
+                    {
+                        "structured_generation_success": True,
+                        "response_time": response_time,
+                        "tokens_used": tokens_used,
+                        "schema_validation_success": True,
+                        "langchain_structured_output": True,
+                    }
+                )
+
+                logger.debug(
+                    f"LangChain structured output successful for {schema.__name__}"
+                )
+                return response
+
+            except Exception as e:
+                logger.error(f"LangChain structured output failed: {e}")
+                tracer.log_metrics(
+                    {
+                        "structured_generation_success": False,
+                        "error": str(e),
+                        "schema_validation_success": False,
+                    }
+                )
+                return self._create_fallback_response(schema)
+
+    def _create_fallback_response(self, schema: Type[T]) -> T:
+        """Create a minimal fallback response when structured generation fails."""
+        try:
+            # Create a minimal valid instance with default values
+            return schema()
+        except Exception as e:
+            logger.error(f"Error creating fallback response for {schema.__name__}: {e}")
+            raise RuntimeError(
+                f"Unable to create fallback response for {schema.__name__}: {e}"
+            )
 
     def _estimate_tokens(self, text: str) -> int:
         """Estimate token count (rough approximation)."""

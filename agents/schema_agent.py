@@ -4,6 +4,8 @@ import json
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 
+from pydantic import BaseModel, Field
+
 from domain.entities import ProcessType
 from infrastructure import llm
 from infrastructure.logging import get_logger
@@ -12,6 +14,37 @@ from tracing.langsmith_setup import trace_agent_operation, tracer
 logger = get_logger(__name__)
 
 
+# Simplified Pydantic models matching natural AI responses
+class SchemaAnalysisResponse(BaseModel):
+    """Simplified schema analysis response from LLM."""
+
+    query_intent: str = Field(
+        default="Unknown intent", description="Intent of the user's query"
+    )
+    relevant_tables: List[str] = Field(
+        default_factory=list, description="List of table names"
+    )
+    target_metrics: List[str] = Field(
+        default_factory=list, description="List of metric column names"
+    )
+    grouping_dimensions: List[str] = Field(
+        default_factory=list, description="List of dimension column names"
+    )
+    filter_columns: List[str] = Field(
+        default_factory=list, description="List of filter column names"
+    )
+    join_strategy: List[str] = Field(
+        default_factory=list, description="How to join tables (must be strings)"
+    )
+    aggregation_needed: bool = Field(
+        default=True, description="Whether aggregation is needed"
+    )
+    complexity_score: float = Field(
+        default=0.5, ge=0.0, le=1.0, description="Complexity score from 0.0 to 1.0"
+    )
+
+
+# Legacy dataclasses for backward compatibility
 @dataclass
 class ColumnAnalysis:
     """Analysis of a specific column."""
@@ -52,7 +85,7 @@ class DataUnderstanding:
 
 
 class SchemaIntelligenceAgent:
-    """AI agent that understands data schemas semantically, not just syntactically."""
+    """AI agent that provides intelligent schema analysis and data understanding."""
 
     def __init__(self):
         """Initialize the schema intelligence agent."""
@@ -97,11 +130,13 @@ class SchemaIntelligenceAgent:
                     query, schema_info, process_type
                 )
 
-                # Get AI analysis
-                response = llm.llm_client.generate_text(prompt, temperature=0.1)
+                # Get AI analysis using structured output
+                structured_response = llm.llm_client.generate_structured(
+                    prompt, SchemaAnalysisResponse, temperature=0.1
+                )
 
-                # Parse the response
-                understanding = self._parse_schema_analysis(response.content, query)
+                # Convert structured response to DataUnderstanding
+                understanding = self._convert_structured_response(structured_response)
 
                 # Log metrics
                 tracer.log_metrics(
@@ -112,108 +147,136 @@ class SchemaIntelligenceAgent:
                             understanding.grouping_dimensions
                         ),
                         "complexity_score": understanding.complexity_score,
-                        "aggregation_needed": understanding.aggregation_needed,
                     }
                 )
 
                 logger.info(
-                    f"Schema analysis complete: {len(understanding.relevant_tables)} tables, "
-                    f"{len(understanding.target_metrics)} metrics identified"
+                    f"Schema analysis complete: {len(understanding.relevant_tables)} tables, {len(understanding.target_metrics)} metrics identified"
                 )
-
                 return understanding
 
             except Exception as e:
-                logger.error(f"Error in schema analysis: {e}")
-                # Return basic fallback understanding
+                logger.error(f"Schema analysis failed: {str(e)}")
                 return self._create_fallback_understanding(query, schema_info)
+
+    def _convert_structured_response(
+        self, response: SchemaAnalysisResponse
+    ) -> DataUnderstanding:
+        """Convert simplified structured response to legacy DataUnderstanding format."""
+
+        # Convert table names to TableAnalysis objects
+        relevant_tables = []
+        for table_name in response.relevant_tables:
+            relevant_tables.append(
+                TableAnalysis(
+                    name=table_name,
+                    purpose=f"Table for {response.query_intent}",
+                    primary_metrics=[],
+                    dimensions=[],
+                    identifiers=[],
+                    relationships=[],
+                )
+            )
+
+        # Convert metric names to ColumnAnalysis objects
+        target_metrics = []
+        for metric_name in response.target_metrics:
+            target_metrics.append(
+                ColumnAnalysis(
+                    name=metric_name,
+                    data_type="unknown",
+                    purpose=f"Metric for {response.query_intent}",
+                    is_metric=True,
+                    aggregation_type=None,
+                )
+            )
+
+        # Convert dimension names to ColumnAnalysis objects
+        grouping_dimensions = []
+        for dim_name in response.grouping_dimensions:
+            grouping_dimensions.append(
+                ColumnAnalysis(
+                    name=dim_name,
+                    data_type="unknown",
+                    purpose=f"Grouping dimension for {response.query_intent}",
+                    is_dimension=True,
+                )
+            )
+
+        # Convert filter column names to ColumnAnalysis objects
+        filter_columns = []
+        for filter_name in response.filter_columns:
+            filter_columns.append(
+                ColumnAnalysis(
+                    name=filter_name,
+                    data_type="unknown",
+                    purpose=f"Filter column for {response.query_intent}",
+                    is_dimension=True,
+                )
+            )
+
+        return DataUnderstanding(
+            query_intent=response.query_intent,
+            relevant_tables=relevant_tables,
+            target_metrics=target_metrics,
+            grouping_dimensions=grouping_dimensions,
+            filter_columns=filter_columns,
+            join_strategy=response.join_strategy,
+            aggregation_needed=response.aggregation_needed,
+            complexity_score=response.complexity_score,
+        )
 
     def _create_schema_analysis_prompt(
         self, query: str, schema_info: Dict[str, Any], process_type: ProcessType
     ) -> str:
-        """Create the AI prompt for schema analysis."""
-
-        # Format schema information for the prompt
+        """Create the schema analysis prompt for structured output."""
         schema_details = self._format_schema_for_prompt(schema_info)
 
         return f"""
-You are an expert data analyst. Analyze this query and data schema to understand what data is needed.
+Analyze the database schema and user query to provide structured data understanding.
 
-Query: "{query}"
-Process Type: {process_type.value}
+USER QUERY: "{query}"
+PROCESS TYPE: {process_type.value}
 
-Available Tables and Schemas:
+AVAILABLE DATABASE SCHEMA:
 {schema_details}
 
-SEMANTIC ANALYSIS TASK:
-Think beyond column names - understand the semantic meaning and relationships.
+ANALYSIS INSTRUCTIONS:
+1. Determine the user's intent and what data analysis is needed
+2. Identify relevant tables required for this analysis
+3. Identify target metrics (measurable values like revenue, count, etc.)
+4. Identify grouping dimensions (how to segment/categorize the data)
+5. Identify filter columns (what might be filtered by time, status, etc.)
+6. Determine join strategy (how tables should be connected)
+7. Assess if aggregation is needed
+8. Estimate complexity (0.0 = simple select, 1.0 = complex multi-table analysis)
 
-For example:
-- "revenue" could be: revenue, sales, amount, total_price, gross, net_sales, income
-- "products" could be: product_name, item_title, sku, product_id, item_description
-- "customers" could be: user_id, customer_name, client_id, buyer_name, account_id
-- "time" could be: created_at, order_date, timestamp, date_purchased, year, month
+IMPORTANT REQUIREMENTS:
+- For "join_strategy", provide simple JOIN statements as strings like "JOIN table1 ON condition"
+- Focus on the business context of the query, not just technical column matching
+- Consider user intent: analysis vs reporting vs exploration
+- Make realistic complexity assessments based on query scope
 
-ANALYSIS REQUIREMENTS:
+EXAMPLES:
+For "churn rate by month":
+- query_intent: "Calculate customer churn metrics over time"
+- relevant_tables: ["users", "orders"]
+- target_metrics: ["churn_rate", "active_customers", "churned_customers"]
+- grouping_dimensions: ["month", "year"]
+- join_strategy: ["LEFT JOIN orders ON users.id = orders.user_id"]
+- aggregation_needed: true
+- complexity_score: 0.7
 
-1. IDENTIFY RELEVANT TABLES:
-   Which tables contain data needed to answer this query?
+For "top products by revenue":
+- query_intent: "Rank products by sales performance"
+- relevant_tables: ["products", "order_items"]
+- target_metrics: ["total_revenue", "units_sold"]
+- grouping_dimensions: ["product_name", "category"]
+- join_strategy: ["JOIN order_items ON products.id = order_items.product_id"]
+- aggregation_needed: true
+- complexity_score: 0.4
 
-2. FIND TARGET METRICS:
-   What are the main measurements/values the user wants to analyze?
-   (revenue, counts, averages, totals, etc.)
-
-3. DETERMINE GROUPING DIMENSIONS:
-   How should the data be grouped or segmented?
-   (by product, by customer, by time period, by category, etc.)
-
-4. PLAN DATA RELATIONSHIPS:
-   How do the tables connect? What joins are needed?
-
-5. ASSESS COMPLEXITY:
-   How complex is this analysis? (0.1 = simple aggregation, 1.0 = complex multi-table analysis)
-
-Respond in JSON format:
-{{
-    "query_intent": "Brief description of what user wants to accomplish",
-    "relevant_tables": [
-        {{
-            "name": "table_name",
-            "purpose": "What this table represents",
-            "relevance_score": 0.9,
-            "key_columns": ["col1", "col2"]
-        }}
-    ],
-    "target_metrics": [
-        {{
-            "column_name": "revenue",
-            "table": "orders",
-            "purpose": "Total sales amount",
-            "aggregation": "SUM"
-        }}
-    ],
-    "grouping_dimensions": [
-        {{
-            "column_name": "product_name",
-            "table": "products",
-            "purpose": "Group by individual products"
-        }}
-    ],
-    "filter_columns": [
-        {{
-            "column_name": "order_date",
-            "table": "orders",
-            "purpose": "Filter by time period"
-        }}
-    ],
-    "join_strategy": [
-        "JOIN products ON orders.product_id = products.id"
-    ],
-    "aggregation_needed": true,
-    "complexity_score": 0.7
-}}
-
-Think semantically about data relationships and user intent, not just column name matching.
+IMPORTANT: All list fields should contain simple strings, not complex objects.
 """
 
     def _format_schema_for_prompt(self, schema_info: Dict[str, Any]) -> str:
@@ -237,87 +300,6 @@ Think semantically about data relationships and user intent, not just column nam
             formatted_parts.append("")  # Empty line between tables
 
         return "\\n".join(formatted_parts)
-
-    def _parse_schema_analysis(
-        self, response_content: str, original_query: str
-    ) -> DataUnderstanding:
-        """Parse the AI response into a DataUnderstanding object."""
-        try:
-            # Clean and parse JSON response
-            cleaned_response = response_content.strip()
-            if cleaned_response.startswith("```json"):
-                cleaned_response = cleaned_response[7:]
-            if cleaned_response.endswith("```"):
-                cleaned_response = cleaned_response[:-3]
-
-            analysis_data = json.loads(cleaned_response)
-
-            # Parse relevant tables
-            relevant_tables = []
-            for table_data in analysis_data.get("relevant_tables", []):
-                relevant_tables.append(
-                    TableAnalysis(
-                        name=table_data.get("name", ""),
-                        purpose=table_data.get("purpose", ""),
-                        primary_metrics=[],  # Will be populated from target_metrics
-                        dimensions=[],  # Will be populated from grouping_dimensions
-                        identifiers=[],
-                        relationships=[],
-                    )
-                )
-
-            # Parse target metrics
-            target_metrics = []
-            for metric_data in analysis_data.get("target_metrics", []):
-                target_metrics.append(
-                    ColumnAnalysis(
-                        name=metric_data.get("column_name", ""),
-                        data_type="numeric",
-                        purpose=metric_data.get("purpose", ""),
-                        is_metric=True,
-                        aggregation_type=metric_data.get("aggregation", "SUM"),
-                    )
-                )
-
-            # Parse grouping dimensions
-            grouping_dimensions = []
-            for dim_data in analysis_data.get("grouping_dimensions", []):
-                grouping_dimensions.append(
-                    ColumnAnalysis(
-                        name=dim_data.get("column_name", ""),
-                        data_type="string",
-                        purpose=dim_data.get("purpose", ""),
-                        is_dimension=True,
-                    )
-                )
-
-            # Parse filter columns
-            filter_columns = []
-            for filter_data in analysis_data.get("filter_columns", []):
-                filter_columns.append(
-                    ColumnAnalysis(
-                        name=filter_data.get("column_name", ""),
-                        data_type="unknown",
-                        purpose=filter_data.get("purpose", ""),
-                        is_dimension=True,
-                    )
-                )
-
-            return DataUnderstanding(
-                query_intent=analysis_data.get("query_intent", original_query),
-                relevant_tables=relevant_tables,
-                target_metrics=target_metrics,
-                grouping_dimensions=grouping_dimensions,
-                filter_columns=filter_columns,
-                join_strategy=analysis_data.get("join_strategy", []),
-                aggregation_needed=bool(analysis_data.get("aggregation_needed", True)),
-                complexity_score=float(analysis_data.get("complexity_score", 0.5)),
-            )
-
-        except (json.JSONDecodeError, ValueError, KeyError) as e:
-            logger.warning(f"Failed to parse schema analysis: {e}")
-            logger.debug(f"Raw response: {response_content}")
-            return self._create_fallback_understanding(original_query, {})
 
     def _create_fallback_understanding(
         self, query: str, schema_info: Dict[str, Any]
